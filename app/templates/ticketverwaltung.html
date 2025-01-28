@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1 class="my-4">Ticketverwaltung</h1>
+
+    <div class="alert alert-info" role="alert">
+        <strong>Anzahl offener Tickets: {{ total_open_tickets }}</strong>
+    </div>
+
+    <div class="mb-4">
+        <input type="text" id="ticketSearch" class="form-control" placeholder="Suche nach Ticket-ID oder Name...">
+    </div>
+
+    <!-- Section for My Tickets -->
+    <h2>Meine Tickets</h2>
+    <div class="row">
+        {% for ticket in my_tickets %}
+        <div class="col-md-4 mb-4">
+            <div class="card {% if ticket.type == 'problem' %}bg-danger text-light{% elif ticket.type == 'training' %}bg-warning text-dark{% elif ticket.type == 'misc' %}bg-info text-dark{% endif %}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ ticket.type.capitalize() }} Ticket ID: {{ ticket.id }}</h5>
+                    <p class="card-text">
+                        <strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }} <br>
+                        <strong>Beschreibung:</strong> {{ ticket.description }} <br>
+                    </p>
+                    <button class="btn btn-light"
+                            onclick="window.location.href='{{ url_for('ticket_details', ticket_type=ticket.type, ticket_id=ticket.id) }}'">
+                        Details
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-md-12">Keine offenen Tickets.</div>
+        {% endfor %}
+    </div>
+
+    <!-- Section for Open Problem Tickets -->
+    <h2>Offene Problem Tickets</h2>
+    <div class="row">
+        {% for ticket in open_problem_tickets %}
+        <div class="col-md-4 mb-4">
+            <div class="card bg-danger text-light"> <!-- Hintergrundfarbe für Problem Tickets -->
+                <div class="card-body">
+                    <h5 class="card-title">Problem Ticket ID: {{ ticket.id }}</h5>
+                    <p class="card-text">
+                        <strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }} <br>
+                        <strong>Beschreibung:</strong> {{ ticket.problem_description }} <br>
+                    </p>
+                    <button class="btn btn-light"
+                            onclick="window.location.href='{{ url_for('ticket_details', ticket_type='problem', ticket_id=ticket.id) }}'">
+                        Details
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-md-12">Keine offenen Problem Tickets.</div>
+        {% endfor %}
+    </div>
+
+    <!-- Section for Open Training Tickets -->
+    <h2>Offene Training Tickets</h2>
+    <div class="row">
+        {% for ticket in open_training_tickets %}
+        <div class="col-md-4 mb-4">
+            <div class="card bg-warning text-dark"> <!-- Hintergrundfarbe für Training Tickets -->
+                <div class="card-body">
+                    <h5 class="card-title">Training Ticket ID: {{ ticket.id }}</h5>
+                    <p class="card-text">
+                        <strong>Lehrer:</strong> {{ ticket.class_teacher }} <br>
+                        <strong>Trainingstyp:</strong> {{ ticket.training_type }} <br>
+                    </p>
+                    <button class="btn btn-dark"
+                            onclick="window.location.href='{{ url_for('ticket_details', ticket_type='training', ticket_id=ticket.id) }}'">
+                        Details
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-md-12">Keine offenen Training Tickets.</div>
+        {% endfor %}
+    </div>
+
+    <!-- Section for Open Misc Tickets -->
+    <h2>Offene Misc Tickets</h2>
+    <div class="row">
+        {% for ticket in open_misc_tickets %}
+        <div class="col-md-4 mb-4">
+            <div class="card bg-info text-dark"> <!-- Hintergrundfarbe für Misc Tickets -->
+                <div class="card-body">
+                    <h5 class="card-title">Misc Ticket ID: {{ ticket.id }}</h5>
+                    <p class="card-text">
+                        <strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }} <br>
+                        <strong>Nachricht:</strong> {{ ticket.message }} <br>
+                    </p>
+                    <button class="btn btn-dark"
+                            onclick="window.location.href='{{ url_for('ticket_details', ticket_type='misc', ticket_id=ticket.id) }}'">
+                        Details
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-md-12">Keine offenen Misc Tickets.</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Script zur Implementierung der Suchfunktion -->
+<script>
+    document.getElementById('ticketSearch').addEventListener('input', function() {
+        const searchValue = this.value.toLowerCase();
+        const cards = document.querySelectorAll('.card');
+        cards.forEach(card => {
+            const title = card.querySelector('.card-title').innerText.toLowerCase();
+            const text = card.querySelector('.card-text').innerText.toLowerCase();
+            if (title.includes(searchValue) || text.includes(searchValue)) {
+                card.parentElement.style.display = ''; // show card
+            } else {
+                card.parentElement.style.display = 'none'; // hide card
+            }
+        });
+    });
+</script>
+{% endblock %}

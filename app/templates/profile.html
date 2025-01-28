@@ -1,0 +1,87 @@
+<!-- app/templates/profile.html -->
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="content-section">
+        <h1 class="text-center mb-4">Profile</h1>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <img src="{{ url_for('profile_picture', first_name=current_user.first_name.replace(' ', '_'), last_name=current_user.last_name.replace(' ', '_')) }}"
+                         alt="Profile Picture" class="card-img-top">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">{{ current_user.first_name }} {{ current_user.last_name }}</h5>
+                        <p class="card-text">{{ current_user.email }}</p>
+                        <p class="card-text"><strong>Role:</strong> {{ current_user.role.name }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info"
+                                type="button" role="tab" aria-controls="info" aria-selected="true">Info
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="edit-tab" data-bs-toggle="tab" data-bs-target="#edit" type="button"
+                                role="tab" aria-controls="edit" aria-selected="false">Edit Profile
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="password-tab" data-bs-toggle="tab" data-bs-target="#password"
+                                type="button" role="tab" aria-controls="password" aria-selected="false">Change Password
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="profileTabsContent">
+                    <div class="tab-pane fade show active" id="info" role="tabpanel" aria-labelledby="info-tab">
+                        <h3 class="mt-3">Account Details</h3>
+                        <p><strong>Account Status:</strong> {{ 'Active' if current_user.active else 'Inactive' }}</p>
+                        <p><strong>Date Joined:</strong> {{ current_user.active_from.strftime('%d-%m-%Y') }}</p>
+                        <p><strong>Last Login:</strong> {{ current_user.last_login.strftime('%d-%m-%Y %H:%M:%S') if
+                            current_user.last_login else 'Never' }}</p>
+                    </div>
+                    <div class="tab-pane fade" id="edit" role="tabpanel" aria-labelledby="edit-tab">
+                        <form method="POST" action="{{ url_for('profile') }}" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="mb-3">
+                                {{ form.first_name.label(class="form-label") }}
+                                {{ form.first_name(class="form-control") }}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.last_name.label(class="form-label") }}
+                                {{ form.last_name(class="form-control") }}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.email.label(class="form-label") }}
+                                {{ form.email(class="form-control") }}
+                            </div>
+                            <div class="mb-3">
+                                {{ form.profile_image.label(class="form-label") }}
+                                {{ form.profile_image(class="form-control") }}
+                            </div>
+                            <button type="submit" class="btn btn-primary">{{ form.submit.label }}</button>
+                        </form>
+
+                        <form method="POST" action="{{ url_for('profile') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="delete_image" value="true">
+                            <button type="submit" class="btn btn-danger">Delete Profile Picture</button>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="password" role="tabpanel" aria-labelledby="password-tab">
+                        <form method="POST" action="{{ url_for('send_password_reset_email') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-primary">Reset Password</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

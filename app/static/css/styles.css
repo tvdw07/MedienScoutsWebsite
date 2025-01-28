@@ -1,0 +1,159 @@
+/* Background with subtle striped pattern */
+body {
+    background-color: #f4e3c1;
+    background-image: repeating-linear-gradient(
+        45deg,
+        #f4e3c1,
+        #f4e3c1 10px,
+        #e8d4b1 10px,
+        #e8d4b1 20px
+    );
+    font-family: Arial, sans-serif;
+    color: #333333;
+}
+
+/* Header and content styles */
+.text-center h1, .container h2 {
+    color: #003366;
+    margin-top: 30px;
+}
+
+.text-center p, .container p {
+    color: #444444;
+    line-height: 1.6;
+}
+
+/* Button styling for a modern look */
+.btn-primary {
+    background-color: #FF9900;
+    border: none;
+    color: #ffffff;
+    padding: 10px 20px;
+    font-size: 1.1em;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.btn-primary:hover {
+    background-color: #cc7a00;
+}
+
+/* HR styling for improved section breaks */
+hr {
+    border-top: 1px solid #ddd;
+    width: 80%;
+    margin: 40px auto;
+}
+
+/* Content sections with rounded corners and shadows */
+.content-section {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+}
+
+/* Navbar styling */
+.navbar {
+    background-color: #003366;
+    padding: 10px 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand, .navbar-nav .nav-link {
+    color: #ffffff !important;
+    font-weight: bold;
+}
+
+.navbar-nav .nav-link:hover {
+    color: #FF9900 !important;
+}
+
+/* Table styling */
+.table-responsive {
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: 1rem;
+    background-color: #ffffff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.table thead th {
+    padding: 1rem;
+    text-align: left;
+    background: linear-gradient(45deg, #003366, #0055a5);
+    color: #ffffff;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.table th, .table td {
+    padding: 15px;
+    text-align: left;
+    vertical-align: middle;
+    border-top: 1px solid #dee2e6;
+}
+
+.table tbody tr:nth-of-type(odd) {
+    background-color: #f9f9f9;
+}
+
+.table tbody tr:hover {
+    background-color: #e0e0e0;
+    transition: background-color 0.3s ease;
+}
+
+.table tbody td {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: 2px solid #dee2e6;
+}
+
+/* Input field styling within table */
+.table input[type="text"],
+.table input[type="email"],
+.table select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px;
+    font-size: 0.9em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+/* Alert styling */
+.alert {
+    margin-top: 20px;
+    text-align: center;
+    background-color: #ffc107;
+    color: #212529;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+#slideshow {
+    height: 1100px;
+}
+
+#digitalxCarousel {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+
+

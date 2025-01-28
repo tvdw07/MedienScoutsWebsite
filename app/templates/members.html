@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Mitglieder{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center">Aktuelle Mitglieder</h1>
+
+    <!-- Search Bar -->
+    <div class="mb-3">
+        <input type="text" id="search" class="form-control" placeholder="Mitglieder suchen...">
+    </div>
+
+    {% if active_members %}
+        <h2>Aktive Mitglieder</h2>
+        <div class="table-responsive">
+            <table id="activeMembersTable" class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col" onclick="sortTable('active', 0)">Vorname &#x25B2;&#x25BC;</th>
+                        <th scope="col" onclick="sortTable('active', 1)">Nachname &#x25B2;&#x25BC;</th>
+                        <th scope="col" class="text-right" onclick="sortTable('active', 2)">Rolle &#x25B2;&#x25BC;</th>
+                        <th scope="col" class="text-right" onclick="sortTable('active', 3)">Aktiv von &#x25B2;&#x25BC;</th>
+                        <th scope="col" class="text-right" onclick="sortTable('active', 4)">Aktiv bis &#x25B2;&#x25BC;</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in active_members %}
+                    <tr>
+                        <td>{{ member.first_name }}</td>
+                        <td>{{ member.last_name }}</td>
+                        <td class="text-right">{{ member.role.name if member.role else 'Nicht definiert' }}</td>
+                        <td class="text-right">{{ member.active_from.strftime('%d.%m.%Y') if member.active_from else 'Nicht definiert' }}</td>
+                        <td class="text-right">
+                            {% if member.active_until %}
+                                {{ member.active_until.strftime('%d.%m.%Y') }}
+                            {% elif member in active_members %}
+                            {% else %}
+                                Noch aktiv
+                                Nicht definiert
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-warning" role="alert">
+            Derzeit sind keine aktiven Mitglieder registriert.
+        </div>
+    {% endif %}
+
+    {% if inactive_members %}
+        <h2>Inaktive Mitglieder</h2>
+        <div class="table-responsive">
+            <table id="inactiveMembersTable" class="table table-striped">
+                <thead>
+                    <tr>
+                        <th scope="col" onclick="sortTable('inactive', 0)">Vorname &#x25B2;&#x25BC;</th>
+                        <th scope="col" onclick="sortTable('inactive', 1)">Nachname &#x25B2;&#x25BC;</th>
+                        <th scope="col" class="text-right" onclick="sortTable('inactive', 2)">Rolle &#x25B2;&#x25BC;</th>
+                        <th scope="col" class="text-right" onclick="sortTable('inactive', 3)">Aktiv von &#x25B2;&#x25BC;</th>
+                        <th scope="col" class="text-right" onclick="sortTable('inactive', 4)">Aktiv bis &#x25B2;&#x25BC;</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in inactive_members %}
+                    <tr>
+                        <td>{{ member.first_name }}</td>
+                        <td>{{ member.last_name }}</td>
+                        <td class="text-right">{{ member.role.name if member.role else 'Nicht definiert' }}</td>
+                        <td class="text-right">{{ member.active_from.strftime('%d.%m.%Y') if member.active_from else 'Nicht definiert' }}</td>
+                        <td class="text-right">{{ member.active_until.strftime('%d.%m.%Y') if member.active_until else 'Nicht definiert' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-warning" role="alert">
+            Derzeit sind keine inaktiven Mitglieder registriert.
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    // Search functionality
+    document.getElementById('search').addEventListener('keyup', function() {
+        const filter = this.value.toLowerCase();
+        const activeRows = document.querySelectorAll('#activeMembersTable tbody tr');
+        const inactiveRows = document.querySelectorAll('#inactiveMembersTable tbody tr');
+
+        activeRows.forEach(row => {
+            const cells = row.getElementsByTagName('td');
+            const found = Array.from(cells).some(cell => cell.textContent.toLowerCase().includes(filter));
+            row.style.display = found ? '' : 'none';
+        });
+
+        inactiveRows.forEach(row => {
+            const cells = row.getElementsByTagName('td');
+            const found = Array.from(cells).some(cell => cell.textContent.toLowerCase().includes(filter));
+            row.style.display = found ? '' : 'none';
+        });
+    });
+
+    // Sort function
+    function sortTable(type, columnIndex) {
+        const table = document.getElementById(type === 'active' ? 'activeMembersTable' : 'inactiveMembersTable');
+        const rows = Array.from(table.rows).slice(1);
+        const isAscending = table.rows[0].cells[columnIndex].classList.toggle('asc');
+
+        rows.sort((a, b) => {
+            const aText = a.cells[columnIndex].textContent.trim();
+            const bText = b.cells[columnIndex].textContent.trim();
+            return isAscending ? aText.localeCompare(bText) : bText.localeCompare(aText);
+        });
+
+        rows.forEach(row => table.appendChild(row)); // Append sorted rows to the table
+    }
+</script>
+{% endblock %}

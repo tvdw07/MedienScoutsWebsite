@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between mt-3">
+        <button class="btn btn-secondary" onclick="window.history.back();">Zurück</button>
+        {% if ticket.status_id in [2, 3] %}
+        <form method="POST" action="{{ url_for('mark_ticket_solved', ticket_id=ticket.id) }}"
+              onsubmit="return confirm('Sind Sie sicher, dass Sie dieses Ticket als gelöst markieren möchten?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-check"></i> Mark as Solved
+            </button>
+        </form>
+        <form method="POST" action="{{ url_for('request_help', ticket_id=ticket.id) }}"
+              onsubmit="return confirm('Sind Sie sicher, dass Sie Hilfe für dieses Ticket anfordern möchten?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
+            <button type="submit" class="btn btn-warning">
+                <i class="fas fa-life-ring"></i> Hilfe anfordern
+            </button>
+        </form>
+        {% endif %}
+        {% if ticket.status_id == 1 %}
+        <form method="POST" action="{{ url_for('claim_ticket', ticket_id=ticket.id) }}"
+              onsubmit="return confirm('Sind Sie sicher, dass Sie dieses Ticket claimen möchten?');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
+            <input type="hidden" name="user_id" value="{{ current_user.id }}">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-hand-paper"></i> Claim Ticket
+            </button>
+        </form>
+        {% elif ticket.status_id == 4 and current_user.is_admin %}
+        <form method="POST" action="{{ url_for('delete_ticket', ticket_id=ticket.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
+            <button type="submit" class="btn btn-danger" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Delete Ticket
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <h1 class="mt-4">Details für Ticket ID: {{ ticket.id }}</h1>
+
+    <div class="card mt-4 p-3">
+        {% if ticket_type == 'problem' %}
+        <h2 class="card-title">Problem Ticket</h2>
+        <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
+        <p><strong>Email:</strong> {{ ticket.email }}</p>
+        <p><strong>Beschreibung:</strong> {{ ticket.problem_description }}</p>
+        <p><strong>Schritte unternommen:</strong> {{ ticket.steps_taken }}</p>
+        <p><strong>Seriennummer:</strong> {{ ticket.serial_number }}</p>
+        {% elif ticket_type == 'training' %}
+        <h2 class="card-title">Training Ticket</h2>
+        <p><strong>Lehrer:</strong> {{ ticket.class_teacher }}</p>
+        <p><strong>Email:</strong> {{ ticket.email }}</p>
+        <p><strong>Trainingstyp:</strong> {{ ticket.training_type }}</p>
+        <p><strong>Grund:</strong> {{ ticket.training_reason }}</p>
+        <p><strong>Vorgeschlagenes Datum:</strong> {{ ticket.proposed_date }}</p>
+        {% elif ticket_type == 'misc' %}
+        <h2 class="card-title">Misc Ticket</h2>
+        <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
+        <p><strong>Email:</strong> {{ ticket.email }}</p>
+        <p><strong>Nachricht:</strong> {{ ticket.message }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Ticket History -->
+    <div class="card mt-4 p-3">
+        <h2 class="card-title">Verlauf</h2>
+        <ul class="list-group">
+            {% for entry in ticket_history %}
+                <li class="list-group-item">
+                    <p><strong>{{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</strong> - {{ entry.author_type }}</p>
+                    <p>{{ entry.message }}</p>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Response Form -->
+    {% if ticket.status_id != 1 and ticket.status_id != 4 %}
+    <div class="card mt-4 p-3">
+        <h2 class="card-title">Antworten</h2>
+        <form method="POST" action="{{ url_for('submit_response', ticket_id=ticket.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
+            <div class="mb-3">
+                <label for="response_message" class="form-label">Antwort</label>
+                <textarea class="form-control" id="response_message" name="response_message" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Antwort senden</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmDelete() {
+        return confirm('Sind Sie sicher, dass Sie dieses Ticket löschen möchten?');
+    }
+</script>
+{% endblock %}

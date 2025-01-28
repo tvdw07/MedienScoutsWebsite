@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Admin Panel</h1>
+
+    <h2>Statistics</h2>
+    <p>Total Tickets in Last 6 Months: {{ total_tickets }}</p>
+    <p>Total Solved Tickets in Last 6 Months: {{ solved_tickets }}</p>
+
+    <h2>User Statistics</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Problem</th>
+                <th>Training</th>
+                <th>Sonstiges</th>
+                <th>Gesamt</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for first_name, last_name, problem_count, training_count, misc_count in user_stats %}
+            <tr>
+                <td>{{ first_name }} {{ last_name }}</td>
+                <td>{{ problem_count }}</td>
+                <td>{{ training_count }}</td>
+                <td>{{ misc_count }}</td>
+                <td>{{ problem_count + training_count + misc_count }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

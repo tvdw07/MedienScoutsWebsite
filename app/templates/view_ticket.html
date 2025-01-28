@@ -1,0 +1,43 @@
+<!-- templates/view_ticket.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1>Ticket Details</h1>
+        <span class="badge bg-info text-dark">{{ ticket.status.status }}</span>
+    </div>
+    <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
+    <p><strong>Beschreibung:</strong> {{ ticket.problem_description }}</p>
+
+    <!-- Ticket History -->
+    <div class="card mt-4 p-3">
+        <h2 class="card-title">Verlauf</h2>
+        <ul class="list-group">
+            {% for entry in ticket_history %}
+                <li class="list-group-item">
+                    <p><strong>{{ entry.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</strong> - {{ entry.author_type }}</p>
+                    <p>{{ entry.message }}</p>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Response Form or Closed Message -->
+    <div class="card mt-4 p-3">
+        <h2 class="card-title">Antworten</h2>
+        {% if ticket.status != 4 %}
+            <form method="POST" action="{{ url_for('view_ticket', token=token) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <label for="response_message" class="form-label">Antwort</label>
+                    <textarea class="form-control" id="response_message" name="response_message" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Antwort senden</button>
+            </form>
+        {% else %}
+            <p>Das Ticket ist geschlossen. Bitte öffnen Sie ein neues Ticket, wenn Sie weitere Probleme haben.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

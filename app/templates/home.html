@@ -1,0 +1,127 @@
+<!-- app/templates/home.html -->
+{% extends "base.html" %}
+
+{% block title %}Willkommen bei MedienScouts{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Welcome Section -->
+    <div class="text-center content-section">
+        <h1>Willkommen bei MedienScouts!</h1>
+        <p>
+            Die MedienScouts spielen eine entscheidende Rolle in der modernen Medienbildung. In einer Welt, in der
+            digitale
+            Medien einen immer größeren Teil unseres Lebens einnehmen, ist es unser Ziel, Schulen dabei zu unterstützen,
+            einen sicheren und verantwortungsvollen Umgang mit diesen Technologien zu fördern. Unser Team aus
+            engagierten
+            Experten bietet umfassende Unterstützung bei allen Fragen rund um den digitalen Alltag.
+        </p>
+        <p>
+            Ob bei der Nutzung sozialer Medien, dem Schutz persönlicher Daten oder der Bekämpfung von Cybermobbing – die
+            MedienScouts stehen Schülern und Lehrern mit Rat und Tat zur Seite. Gemeinsam gestalten wir die digitale
+            Zukunft
+            verantwortungsbewusst und sicher.
+        </p>
+
+        <!-- Call-to-action button -->
+        <a href="{{ url_for('send_ticket') }}" class="btn btn-primary btn-lg mt-3">
+            <i class="fas fa-ticket-alt"></i> Jetzt ein Ticket senden
+        </a>
+    </div>
+
+    <hr>
+
+    <!-- Offers Section -->
+    <div class="content-section">
+        <h2>Unsere Angebote</h2>
+        <p>
+            Wir bieten eine Vielzahl von Weiterbildungsangeboten, die speziell auf die Bedürfnisse von Schulen
+            zugeschnitten
+            sind. Egal, ob Sie eine Schulung für Lehrkräfte oder ein spezielles Programm für Schüler benötigen – wir
+            haben
+            das passende Angebot. Unsere maßgeschneiderten Fortbildungen umfassen Themen wie digitale
+            Selbstverteidigung,
+            Datenschutz, sichere Internetnutzung und vieles mehr.
+        </p>
+        <p>
+            Unsere Fortbildungen sind praxisnah und interaktiv, sodass die Teilnehmer das Gelernte direkt anwenden
+            können.
+            Durch unsere langjährige Erfahrung in der Medienbildung sind wir in der Lage, ein hohes Niveau an Expertise
+            zu
+            bieten und Ihre Schule optimal auf die Herausforderungen der digitalen Welt vorzubereiten.
+        </p>
+    </div>
+
+    <hr>
+
+    <!-- New Section -->
+    <div class="content-section">
+        <h2>Unsere Ausbildung</h2>
+        <p>
+            Durch unsere Ausbildungen im Bereich Cybersecurity und anderen relevanten Themen sind unsere MedienScouts
+            besonders geschult, um Wissen an Schüler weiterzugeben und diese bestmöglich zu unterstützen.
+        </p>
+    </div>
+
+    <hr>
+
+    <!-- DigitalX 2024 Section -->
+    <div class="content-section" id="slideshow">
+        <h2>DigitalX 2024</h2>
+        <div id="digitalxCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3000">
+            <div class="carousel-inner">
+                <div class="carousel-item active">
+                    <img src="{{ url_for('static', filename='images/DigitalX/image1.WEBP') }}"
+                         class="d-block w-75 mx-auto" alt="DigitalX Image 1">
+                </div>
+                <div class="carousel-item">
+                    <img src="{{ url_for('static', filename='images/DigitalX/image2.WEBP') }}"
+                         class="d-block w-75 mx-auto" alt="DigitalX Image 2">
+                </div>
+                <div class="carousel-item">
+                    <img src="{{ url_for('static', filename='images/DigitalX/image3.WEBP') }}"
+                         class="d-block w-75 mx-auto" alt="DigitalX Image 3">
+                </div>
+                <div class="carousel-item">
+                    <img src="{{ url_for('static', filename='images/DigitalX/image4.WEBP') }}"
+                         class="d-block w-75 mx-auto" alt="DigitalX Image 4">
+                </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#digitalxCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon custom-control-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#digitalxCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon custom-control-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Members Section -->
+    <div class="content-section">
+        <h2>Unsere Mitglieder</h2>
+        <p>
+            Aktuell engagieren sich <strong>{{ member_count }}</strong> Mitglieder aktiv für die Medienbildung in
+            verschiedenen Projekten und Schulprogrammen. Unsere Mitglieder kommen aus den unterschiedlichsten Bereichen
+            und
+            bringen eine Fülle von Wissen und Erfahrung mit, die sie in ihre Arbeit mit Schülern und Lehrkräften
+            einfließen
+            lassen.
+        </p>
+        <p>
+            Wir sind stolz auf unser wachsendes Netzwerk von engagierten MedienScouts, die alle ein gemeinsames Ziel
+            verfolgen: Schülern und Lehrern dabei zu helfen, digitale Medien verantwortungsbewusst zu nutzen. Wenn Sie
+            auch
+            Teil dieser Bewegung werden möchten, zögern Sie nicht – wir freuen uns auf Sie!
+        </p>
+    </div>
+
+    <div class="content-section">
+        <h2>Official MedienScouts NRW Website</h2>
+        <p>Für mehr informationen über MedienScouts NRW, besuche die offizielle Wbsite:</p>
+        <a href="https://www.medienscouts-nrw.de" target="_blank">https://www.medienscouts-nrw.de</a>
+    </div>
+</div>
+{% endblock %}

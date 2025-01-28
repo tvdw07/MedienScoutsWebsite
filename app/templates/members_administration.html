@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Member Management{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Member Management</h1>
+
+    <h2>Active Members</h2>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Username</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Rank</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in active_users %}
+                <tr>
+                    <form method="POST" action="{{ url_for('members_administration') }}" onsubmit="return confirmUpdate(this);">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <td>
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <input type="text" name="username" class="form-control form-control-sm" value="{{ user.username }}" required>
+                        </td>
+                        <td><input type="text" name="first_name" class="form-control form-control-sm" value="{{ user.first_name }}" required></td>
+                        <td><input type="text" name="last_name" class="form-control form-control-sm" value="{{ user.last_name }}" required></td>
+                        <td><input type="email" name="email" class="form-control form-control-sm" value="{{ user.email }}" required></td>
+                        <td>
+                            <select name="role" class="form-control form-control-sm" required>
+                                {% for role in roles %}
+                                <option value="{{ role.value }}" {% if user.role == role %}selected{% endif %}>{{ role.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="rank" class="form-control form-control-sm" required>
+                                {% for rank in ranks %}
+                                <option value="{{ rank.value }}" {% if user.rank == rank %}selected{% endif %}>{{ rank.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="submit" class="btn btn-success btn-sm" data-toggle="tooltip" data-placement="top" title="Update Member">
+                                    <i class="fas fa-check"></i> Update
+                                </button>
+                                <button type="submit" name="set_inactive" class="btn btn-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Set Inactive">
+                                    <i class="fas fa-user-slash"></i> Inactive
+                                </button>
+                                <button type="submit" name="reset_password" class="btn btn-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Reset Password">
+                                    <i class="fas fa-key"></i> Reset Password
+                                </button>
+                            </div>
+                        </td>
+                    </form>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Inactive Members</h2>
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Username</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Rank</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in inactive_users %}
+                <tr>
+                    <form method="POST" action="{{ url_for('members_administration') }}" onsubmit="return confirmUpdate(this);">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <td>
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <input type="text" name="username" class="form-control form-control-sm" value="{{ user.username }}" required>
+                        </td>
+                        <td><input type="text" name="first_name" class="form-control form-control-sm" value="{{ user.first_name }}" required></td>
+                        <td><input type="text" name="last_name" class="form-control form-control-sm" value="{{ user.last_name }}" required></td>
+                        <td><input type="email" name="email" class="form-control form-control-sm" value="{{ user.email }}" required></td>
+                        <td>
+                            <select name="role" class="form-control form-control-sm" required>
+                                {% for role in roles %}
+                                <option value="{{ role.value }}" {% if user.role == role %}selected{% endif %}>{{ role.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="rank" class="form-control form-control-sm" required>
+                                {% for rank in ranks %}
+                                <option value="{{ rank.value }}" {% if user.rank == rank %}selected{% endif %}>{{ rank.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="submit" class="btn btn-success btn-sm" data-toggle="tooltip" data-placement="top" title="Update Member">
+                                    <i class="fas fa-check"></i> Update
+                                </button>
+                                <button type="submit" name="set_active" class="btn btn-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Set Active">
+                                    <i class="fas fa-user-check"></i> Active
+                                </button>
+                                <button type="submit" name="reset_password" class="btn btn-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Reset Password">
+                                    <i class="fas fa-key"></i> Reset Password
+                                </button>
+                            </div>
+                        </td>
+                    </form>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Create New Member</h2>
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('members_administration') }}" onsubmit="return confirmCreateUser(this);">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="new_username">Username</label>
+                <input type="text" name="new_username" class="form-control" id="new_username" required>
+            </div>
+            <div class="form-group">
+                <label for="new_first_name">First Name</label>
+                <input type="text" name="new_first_name" class="form-control" id="new_first_name" required>
+            </div>
+            <div class="form-group">
+                <label for="new_last_name">Last Name</label>
+                <input type="text" name="new_last_name" class="form-control" id="new_last_name" required>
+            </div>
+            <div class="form-group">
+                <label for="new_email">Email</label>
+                <input type="email" name="new_email" class="form-control" id="new_email" required>
+            </div>
+            <div class="form-group">
+                <label for="new_role">Role</label>
+                <select name="new_role" class="form-control" id="new_role" required>
+                    {% for role in roles %}
+                    <option value="{{ role.value }}">{{ role.value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="new_rank">Rank</label>
+                <select name="new_rank" class="form-control" id="new_rank" required>
+                    {% for rank in ranks %}
+                    <option value="{{ rank.value }}">{{ rank.value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" name="create_user" class="btn btn-primary">Create User</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmUpdate(form) {
+        return confirm('Are you sure you want to update this member?');
+    }
+
+    function confirmCreateUser(form) {
+        return confirm('Are you sure you want to create this user?');
+    }
+</script>
+{% endblock %}

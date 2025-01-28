@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket senden{% endblock %}
+
+{% block content %}
+<div class="content-section">
+    <h1 class="text-center mb-4">Problem melden oder Fortbildung buchen</h1>
+    <form method="POST" action="{{ url_for('send_ticket') }}" enctype="multipart/form-data" onsubmit="return validateForm()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-4">
+            <label for="ticket_type" class="form-label">Ticket Art</label>
+            <select class="form-control" id="ticket_type" name="ticket_type" required onchange="toggleFields()">
+                <option value="problem">Problem</option>
+                <option value="fortbildung">Fortbildung</option>
+                <option value="sonstiges">Sonstiges</option>
+            </select>
+        </div>
+
+        <!-- Problem Section -->
+        <div id="problem_fields" class="border p-4 rounded mb-4">
+            <h2 class="h4 mb-3">Problemdetails</h2>
+            <div class="mb-3">
+                <label for="first_name" class="form-label">Vorname</label>
+                <input type="text" class="form-control" id="first_name" name="first_name" placeholder="Ihr Vorname">
+            </div>
+            <div class="mb-3">
+                <label for="last_name" class="form-label">Nachname</label>
+                <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Ihr Nachname">
+            </div>
+            <div class="mb-4">
+                <label for="email_problem" class="form-label">E-Mail-Adresse</label>
+                <input type="email" class="form-control" id="email_problem" name="email_problem" placeholder="Ihre E-Mail-Adresse">
+            </div>
+            <div class="mb-3">
+                <label for="class" class="form-label">Klasse/Stufe</label>
+                <input type="text" class="form-control" id="class" name="class" placeholder="Klassenstufe">
+            </div>
+            <div class="mb-3">
+                <label for="serial_number" class="form-label">Seriennummer des betroffenen Geräts (optional)</label>
+                <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="Seriennummer">
+            </div>
+            <div class="mb-3">
+                <label for="problem_description" class="form-label">Beschreibung des Problems</label>
+                <textarea class="form-control" id="problem_description" name="problem_description" rows="5" placeholder="Bitte beschreiben Sie das Problem"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Bisher unternommene Schritte</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="step1" name="steps" value="neugestartet">
+                    <label class="form-check-label" for="step1">Neugestartet</label>
+                </div>
+                <div id="additional-steps" class="mt-2"></div>
+                <div class="input-group mt-2">
+                    <input type="text" class="form-control" id="new_step" placeholder="Weitere Schritte">
+                    <button type="button" class="btn btn-secondary" onclick="addStep()">Hinzufügen</button>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="photo" class="form-label">Foto des Stundenplans (optional)</label>
+                <input class="form-control" type="file" id="photo" name="photo">
+            </div>
+        </div>
+
+        <!-- Fortbildung Section -->
+        <div id="fortbildung_fields" class="border p-4 rounded mb-4" style="display: none;">
+            <h2 class="h4 mb-3">Fortbildungsdetails</h2>
+            <div class="mb-3">
+                <label for="class_teacher" class="form-label">Klassenlehrer</label>
+                <input type="text" class="form-control" id="class_teacher" name="class_teacher" placeholder="Name des Klassenlehrers">
+            </div>
+            <div class="mb-4">
+                <label for="email_fortbildung" class="form-label">E-Mail-Adresse</label>
+                <input type="email" class="form-control" id="email_fortbildung" name="email_fortbildung" placeholder="Ihre E-Mail-Adresse">
+            </div>
+            <div class="mb-3">
+                <label for="training_type" class="form-label">Art der Fortbildung</label>
+                <input type="text" class="form-control" id="training_type" name="training_type" placeholder="Art der gewünschten Fortbildung">
+            </div>
+            <div class="mb-3">
+                <label for="training_reason" class="form-label">Grund für die Fortbildung</label>
+                <textarea class="form-control" id="training_reason" name="training_reason" placeholder="Grund für die Fortbildung"></textarea>
+            </div>
+            <div class="mb-3">
+                <label for="proposed_date" class="form-label">Vorgeschlagenes Datum & Uhrzeit</label>
+                <input type="datetime-local" class="form-control" id="proposed_date" name="proposed_date">
+            </div>
+        </div>
+
+        <!-- Sonstiges Section -->
+        <div id="sonstiges_fields" class="border p-4 rounded mb-4" style="display: none;">
+            <h2 class="h4 mb-3">Sonstiges</h2>
+            <div class="mb-3">
+                <label for="first_name_sonstiges" class="form-label">Vorname</label>
+                <input type="text" class="form-control" id="first_name_sonstiges" name="first_name_sonstiges" placeholder="Ihr Vorname">
+            </div>
+            <div class="mb-3">
+                <label for="last_name_sonstiges" class="form-label">Nachname</label>
+                <input type="text" class="form-control" id="last_name_sonstiges" name="last_name_sonstiges" placeholder="Ihr Nachname">
+            </div>
+            <div class="mb-4">
+                <label for="email_sonstiges" class="form-label">E-Mail-Adresse</label>
+                <input type="email" class="form-control" id="email_sonstiges" name="email_sonstiges" placeholder="Ihre E-Mail-Adresse">
+            </div>
+            <div class="mb-3">
+                <label for="message_sonstiges" class="form-label">Nachricht</label>
+                <textarea class="form-control" id="message_sonstiges" name="message_sonstiges" rows="5" placeholder="Ihre Nachricht"></textarea>
+            </div>
+        </div>
+
+        <!-- Privacy Policy Section -->
+        <div class="form-check mb-4">
+            <input class="form-check-input" type="checkbox" id="privacy_policy" required>
+            <label class="form-check-label" for="privacy_policy">
+                Ich akzeptiere die <a href="{{ url_for('privacy_policy') }}" target="_blank" title="Lesen Sie die Datenschutzerklärung">Datenschutzerklärung</a>.
+            </label>
+        </div>
+
+        <div class="text-center">
+            <button type="submit" class="btn btn-primary btn-lg">Ticket absenden</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleFields();
+    });
+
+    function toggleFields() {
+        var ticketType = document.getElementById('ticket_type').value;
+        var fortbildungFields = document.getElementById('fortbildung_fields');
+        var problemFields = document.getElementById('problem_fields');
+        var sonstigesFields = document.getElementById('sonstiges_fields');
+
+        // Alle Felder verstecken
+        fortbildungFields.style.display = 'none';
+        problemFields.style.display = 'none';
+        sonstigesFields.style.display = 'none';
+
+        // Nur die entsprechenden Felder anzeigen
+        if (ticketType === 'fortbildung') {
+            fortbildungFields.style.display = 'block';
+        } else if (ticketType === 'sonstiges') {
+            sonstigesFields.style.display = 'block';
+        } else {
+            problemFields.style.display = 'block';
+        }
+    }
+
+    function addStep() {
+        var container = document.getElementById('additional-steps');
+        var newStepValue = document.getElementById('new_step').value;
+        if (newStepValue.trim() !== '') {
+            var div = document.createElement('div');
+            div.className = 'form-check d-flex align-items-center mt-2';
+            var input = document.createElement('input');
+            input.type = 'checkbox';
+            input.name = 'steps';
+            input.className = 'form-check-input';
+            input.value = newStepValue;
+            var label = document.createElement('label');
+            label.className = 'form-check-label ms-2';
+            label.textContent = newStepValue;
+            var deleteButton = document.createElement('button');
+            deleteButton.type = 'button';
+            deleteButton.className = 'btn btn-danger btn-sm ms-auto delete-btn';
+            deleteButton.textContent = 'Löschen';
+            deleteButton.onclick = function() {
+                container.removeChild(div);
+            };
+            div.appendChild(input);
+            div.appendChild(label);
+            div.appendChild(deleteButton);
+            container.appendChild(div);
+            document.getElementById('new_step').value = '';
+        }
+    }
+
+    function validateForm() {
+        return true;
+    }
+</script>
+{% endblock %}
