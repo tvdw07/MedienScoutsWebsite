@@ -1,29 +1,35 @@
-# TicketSystem
+# Ticket System
 
-A ticket system with multiple ticket types and user management. This software allows users to create, manage, and track various types of tickets while providing an administrative interface for user management and configuration.
+A comprehensive ticketing system with multiple ticket types and user management. This software enables users to create, manage, and track tickets efficiently while providing an administrative interface for user and system configuration.
+
+## Features
+- Multiple ticket types for different use cases
+- User-friendly interface for ticket creation, management, and tracking
+- Role-based user management system
+- Administrative panel for configuration and user management
+- Logging and history tracking for tickets
 
 ## Installation
-
-Installation instructions are to be announced (TBA). Stay tuned for future updates!
+Installation instructions will be provided soon. Stay tuned for updates!
 
 ## Usage
-
-Usage instructions are to be announced (TBA). Once setup is complete, users will be able to interact with the system through a user-friendly interface for ticket creation, management, and tracking.
+Detailed usage instructions will be announced in future updates. The system will provide an intuitive interface for users to interact with the ticketing system seamlessly.
 
 ## Contributing
+We welcome contributions! If you're interested in contributing, you can:
+- Fork the repository and submit pull requests
+- Open issues to report bugs or suggest new features
 
-Contributions are welcome! You can fork the repository, submit pull requests, or open issues. Please ensure you follow the guidelines outlined in the license when contributing:
-
-- Provide proper credit visually and in the Impressum.
-- For commercial use, please contact Tim von der Weppen via email at tim.vonderweppen@web.de.
+### License Compliance
+- Ensure proper credit is given both visually within the software and in the Impressum.
+- For commercial use, please contact Tim von der Weppen via email.
 
 ## License
-
-See License
+This project is licensed under the applicable terms. See the `LICENSE` file for more details.
 
 ## Contact
-
-For any support or inquiries, please reach out to:
+For support or inquiries, please reach out to:
 
 **Tim von der Weppen**  
-Email: tim.vonderweppen@web.de
+Email: [tim.vonderweppen@web.de](mailto:tim.vonderweppen@web.de)
+
