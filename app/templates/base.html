@@ -73,27 +73,30 @@
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('members') }}">Members</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('send_ticket') }}">Send Ticket</a></li>
                     {% if current_user.is_authenticated %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('ticket_verwaltung') }}">Ticketverwaltung</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('archiv') }}">Archiv</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('forum') }}">Forum</a></li>
-                        {% if current_user.is_admin %}
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button"
-                                   data-bs-toggle="dropdown" aria-expanded="false">
-                                    Admin
-                                </a>
-                                <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                                    <li><a class="dropdown-item" href="{{ url_for('admin_panel') }}">Admin Panel</a></li>
-                                    <li><a class="dropdown-item" href="{{ url_for('members_administration') }}">Member Management</a></li>
-                                </ul>
-                            </li>
-                        {% endif %}
+                    <li class="nav-item"><a class="nav-link"
+                                            href="{{ url_for('ticket_verwaltung') }}">Ticketverwaltung</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('archiv') }}">Archiv</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('forum') }}">Forum</a></li>
+                    {% if current_user.is_admin %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            Admin
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item" href="{{ url_for('admin_panel') }}">Admin Panel</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('members_administration') }}">Member
+                                Management</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('profile') }}">Profile</a></li>
-                    <li class="nav-item"><a class="nav-link btn btn-outline-light" href="{{ url_for('logout') }}">Logout</a></li>
+                    <li class="nav-item"><a class="nav-link btn btn-outline-light"
+                                            href="{{ url_for('logout') }}">Logout</a></li>
                     {% else %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
                     {% endif %}
@@ -120,6 +123,11 @@
             {% block content %}{% endblock %}
         </div>
     </div>
+
+    <!-- Nach oben Button -->
+    <button onclick="topFunction()" id="topBtn" title="Nach oben">
+        <i class="fas fa-arrow-up"></i>
+    </button>
 
     <!-- Footer -->
     <footer class="footer text-center text-lg-start mt-5">
