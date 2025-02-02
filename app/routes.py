@@ -770,7 +770,13 @@ def profile_picture(first_name, last_name):
     # Construct the filename and use an absolute path for existence check
     filename = f"{first_name}_{last_name}.png".replace(' ', '_')
     upload_folder_absolute = os.path.join(current_app.root_path, app.config['USER_PROFILES'])
-    file_path = os.path.join(upload_folder_absolute, filename)
+    file_path = os.path.normpath(os.path.join(upload_folder_absolute, filename))
+
+    # Ensure the file path is within the upload folder
+    if not file_path.startswith(upload_folder_absolute):
+        flash('Invalid file path.', 'danger')
+        current_app.logger.warning(f'Invalid file path access attempt: {file_path}')
+        return redirect(url_for('profile'))
 
     # Debugging output
     print(f"Absolute file path being checked: {file_path}")
