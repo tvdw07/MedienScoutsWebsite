@@ -15,17 +15,17 @@ class EmailTemplate:
         self.template_content = template_content
 
     def render(self, **kwargs):
-        # Fügt die Variablen in den Template-Content ein
+        # Ensure the template content is formatted correctly
         return self.template_content.format(**kwargs)
 
 
-# Funktion zum Senden einer E-Mail mit dynamischem Template
+# Function to send an email with a dynamic template
 def send_email(template, recipient, **variables):
-    # Konfigurationsdatei lesen
+    # Read configuration file
     config = configparser.ConfigParser()
     config.read('config.ini')
 
-    # SMTP-Konfigurationsdaten auslesen
+    # Read SMTP configuration data
     smtp_server = config['SMTP']['server']
     smtp_port = config['SMTP'].getint('port')
     smtp_user = config['SMTP']['user']
@@ -37,243 +37,437 @@ def send_email(template, recipient, **variables):
     subject = template.subject
     html_content = template.render(**variables)
 
-    # E-Mail-Nachricht erstellen
+    # Create email message
     message = MIMEMultipart('alternative')
     message['From'] = from_email
     message['To'] = recipient
     message['Subject'] = subject
 
-    # HTML-Nachricht hinzufügen
+    # Add HTML message
     html_part = MIMEText(html_content, 'html')
     message.attach(html_part)
 
-    # E-Mail senden
+    # Send email
     try:
         server = smtplib.SMTP(smtp_server, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_password)
         server.sendmail(from_email, recipient, message.as_string())
         server.quit()
-        print("E-Mail wurde erfolgreich gesendet.")
+        print("Email sent successfully.")
     except Exception as e:
-        print(f"Fehler beim Senden der E-Mail: {e}")
+        print(f"Error sending email: {e}")
 
+
+# Ticket Link Email Template
 ticket_link_template = EmailTemplate(
     subject="Your Ticket Link",
-    template_content="""
+    template_content="""\
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            body {{
-                font-family: 'Arial', sans-serif;
-                background-color: #f4f4f7;
-                color: #333333;
-                margin: 0;
-                padding: 0;
-                line-height: 1.6;
-            }}
-            .container {{
-                max-width: 600px;
-                margin: 30px auto;
-                padding: 20px;
-                background: #ffffff;
-                border-radius: 10px;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            }}
-            .header {{
-                text-align: center;
-                background: linear-gradient(135deg, #4CAF50, #3b8d41);
-                padding: 20px 10px;
-                border-radius: 10px 10px 0 0;
-            }}
-            .header h1 {{
-                color: #ffffff;
-                margin: 0;
-                font-size: 24px;
-            }}
-            .content {{
-                padding: 20px;
-                text-align: left;
-            }}
-            .content p {{
-                margin: 10px 0;
-            }}
-            .btn {{
-                display: block;
-                width: fit-content;
-                padding: 12px 25px;
-                margin: 20px auto;
-                background: #007BFF;
-                color: white;
-                text-align: center;
-                border-radius: 5px;
-                text-decoration: none;
-                font-size: 16px;
-                font-weight: bold;
-            }}
-            .btn:hover {{
-                background: #0056b3;
-            }}
-            .footer {{
-                text-align: center;
-                font-size: 12px;
-                color: #666666;
-                margin-top: 20px;
-            }}
-        </style>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <!-- Using Google Fonts for a modern look -->
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        body {{
+          font-family: 'Roboto', Arial, sans-serif;
+          background-color: #f7f9fc;
+          margin: 0;
+          padding: 0;
+          color: #444;
+          line-height: 1.6;
+        }}
+        .container {{
+          max-width: 600px;
+          margin: 40px auto;
+          background: #fff;
+          border-radius: 12px;
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }}
+        .header {{
+          background: linear-gradient(135deg, #4CAF50, #2E7D32);
+          padding: 30px;
+          text-align: center;
+        }}
+        .header h1 {{
+          color: #fff;
+          margin: 0;
+          font-size: 26px;
+          font-weight: 500;
+        }}
+        .content {{
+          padding: 30px;
+        }}
+        .content p {{
+          margin: 15px 0;
+          font-size: 16px;
+        }}
+        .btn {{
+          display: inline-block;
+          padding: 14px 30px;
+          margin: 20px 0;
+          background: #007BFF;
+          color: #fff;
+          text-decoration: none;
+          border-radius: 6px;
+          font-size: 16px;
+          font-weight: 500;
+        }}
+        .btn:hover {{
+          background: #0056b3;
+        }}
+        .footer {{
+          background: #f1f1f1;
+          text-align: center;
+          padding: 15px;
+          font-size: 12px;
+          color: #777;
+        }}
+      </style>
     </head>
     <body>
-        <div class="container">
-            <div class="header">
-                <h1>Your Ticket Link</h1>
-            </div>
-            <div class="content">
-                <p>Hello,</p>
-                <p>You can view and reply to your ticket using the link below:</p>
-                <a href="{link}" class="btn">View Ticket</a>
-            </div>
-            <div class="footer">
-                <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
-            </div>
+      <div class="container">
+        <div class="header">
+          <h1>Your Ticket Link</h1>
         </div>
+        <div class="content">
+          <p>Hello,</p>
+          <p>You can view and reply to your ticket using the link below:</p>
+          <p style="text-align: center;"><a href="{link}" class="btn">View Ticket</a></p>
+        </div>
+        <div class="footer">
+          <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
+        </div>
+      </div>
     </body>
     </html>
     """
 )
 
+# Admin Notification Email Template
 notify_admin_template = EmailTemplate(
     subject="Admin Notification",
-    template_content="""
+    template_content="""\
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{ font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px; }}
-            .email-header {{ background-color: #4CAF50; color: white; padding: 10px; text-align: center; }}
-            .email-content {{ padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }}
-            .btn {{ display: inline-block; padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }}
-            .email-footer {{ font-size: 12px; color: #777; text-align: center; margin-top: 20px; }}
-        </style>
+      <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        body {{
+          font-family: 'Roboto', Arial, sans-serif;
+          background-color: #f2f4f8;
+          padding: 20px;
+          color: #333;
+        }}
+        .email-container {{
+          max-width: 600px;
+          margin: 0 auto;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }}
+        .email-header {{
+          background-color: #4CAF50;
+          padding: 25px;
+          text-align: center;
+          color: #fff;
+        }}
+        .email-header h1 {{
+          margin: 0;
+          font-size: 24px;
+          font-weight: 500;
+        }}
+        .email-content {{
+          padding: 30px;
+          font-size: 16px;
+        }}
+        .btn {{
+          display: inline-block;
+          padding: 12px 25px;
+          background-color: #007BFF;
+          color: #fff;
+          text-decoration: none;
+          border-radius: 6px;
+          margin-top: 20px;
+          font-weight: 500;
+        }}
+        .btn:hover {{
+          background-color: #0056b3;
+        }}
+        .email-footer {{
+          background: #f9f9f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 12px;
+          color: #777;
+        }}
+      </style>
     </head>
     <body>
+      <div class="email-container">
         <div class="email-header">
-            <h1>New Ticket Notification</h1>
-        </div>
-            <div class="email-content">
-                <p>Hello Admin,</p>
-                <p>{message}</p>
-                <p><a href="{link}" class="btn">View Ticket</a></p>
-            </div>
-        <div class="email-footer">
-            <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
-        </div>
-    </body>
-    </html>
-    """
-)
-
-notify_client_about_ticket_change_template = EmailTemplate(
-    subject="Response to Your Ticket",
-    template_content="""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    body {{ font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px; }}
-                    .email-header {{ background-color: #4CAF50; color: white; padding: 10px; text-align: center; }}
-                    .email-content {{ padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }}
-                    .btn {{ display: inline-block; padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }}
-                    .email-footer {{ font-size: 12px; color: #777; text-align: center; margin-top: 20px; }}
-                </style>
-            </head>
-            <body>
-                <div class="email-header">
-                    <h1>Response to Your Ticket</h1>
-                </div>
-                <div class="email-content">
-                    <p>Hello,</p>
-                    <p>We have responded to your ticket. Please check the details below:</p>
-                    <p>{response_message}</p>
-                    <p><a href="{link}" class="btn">View Ticket</a></p>
-                </div>
-                <div class="email-footer">
-                    <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
-                </div>
-            </body>
-            </html>
-            """
-)
-
-notify_user_about_ticket_change_template = EmailTemplate(
-    subject="Response to Your Ticket",
-    template_content="""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <style>
-                    body {{ font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px; }}
-                    .email-header {{ background-color: #4CAF50; color: white; padding: 10px; text-align: center; }}
-                    .email-content {{ padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }}
-                    .btn {{ display: inline-block; padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }}
-                    .email-footer {{ font-size: 12px; color: #777; text-align: center; margin-top: 20px; }}
-                </style>
-            </head>
-            <body>
-                <div class="email-header">
-                    <h1>Response to Your Ticket</h1>
-                </div>
-                <div class="email-content">
-                    <p>Hello,</p>
-                    <p>The Client has responded to your ticket. Please check the details below:</p>
-                    <p>{response_message}</p>
-                    <p><a href="{link}" class="btn">View Ticket</a></p>
-                </div>
-                <div class="email-footer">
-                    <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
-                </div>
-            </body>
-            </html>
-            """
-)
-
-reset_password_template = EmailTemplate(
-    subject="Password Reset Request",
-    template_content="""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            body {{ font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px; }}
-            .email-header {{ background-color: #4CAF50; color: white; padding: 10px; text-align: center; }}
-            .email-content {{ padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); }}
-            .btn {{ display: inline-block; padding: 10px 20px; background-color: #007BFF; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }}
-            .email-footer {{ font-size: 12px; color: #777; text-align: center; margin-top: 20px; }}
-        </style>
-    </head>
-    <body>
-        <div class="email-header">
-            <h1>Password Reset Request</h1>
+          <h1>New Ticket Notification</h1>
         </div>
         <div class="email-content">
-            <p>Hello,</p>
-            <p>You can reset your password using the following link:</p>
-            <p><a href="{reset_url}" class="btn">Reset Password</a></p>
+          <p>Hello Admin,</p>
+          <p>{message}</p>
+          <p style="text-align: center;"><a href="{link}" class="btn">View Ticket</a></p>
         </div>
         <div class="email-footer">
-            <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
+          <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
         </div>
+      </div>
     </body>
     </html>
     """
 )
 
+# Client Notification about Ticket Change
+notify_client_about_ticket_change_template = EmailTemplate(
+    subject="Response to Your Ticket",
+    template_content="""\
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        body {{
+          font-family: 'Roboto', Arial, sans-serif;
+          background-color: #f2f4f8;
+          padding: 20px;
+          color: #333;
+        }}
+        .email-container {{
+          max-width: 600px;
+          margin: 0 auto;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }}
+        .email-header {{
+          background-color: #4CAF50;
+          padding: 25px;
+          text-align: center;
+          color: #fff;
+        }}
+        .email-header h1 {{
+          margin: 0;
+          font-size: 24px;
+          font-weight: 500;
+        }}
+        .email-content {{
+          padding: 30px;
+          font-size: 16px;
+        }}
+        .btn {{
+          display: inline-block;
+          padding: 12px 25px;
+          background-color: #007BFF;
+          color: #fff;
+          text-decoration: none;
+          border-radius: 6px;
+          margin-top: 20px;
+          font-weight: 500;
+        }}
+        .btn:hover {{
+          background-color: #0056b3;
+        }}
+        .email-footer {{
+          background: #f9f9f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 12px;
+          color: #777;
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="email-container">
+        <div class="email-header">
+          <h1>Response to Your Ticket</h1>
+        </div>
+        <div class="email-content">
+          <p>Hello,</p>
+          <p>We have responded to your ticket. Please check the details below:</p>
+          <p>{response_message}</p>
+          <p style="text-align: center;"><a href="{link}" class="btn">View Ticket</a></p>
+        </div>
+        <div class="email-footer">
+          <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+)
+
+# User Notification about Ticket Change
+notify_user_about_ticket_change_template = EmailTemplate(
+    subject="Response to Your Ticket",
+    template_content="""\
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        body {{
+          font-family: 'Roboto', Arial, sans-serif;
+          background-color: #f2f4f8;
+          padding: 20px;
+          color: #333;
+        }}
+        .email-container {{
+          max-width: 600px;
+          margin: 0 auto;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }}
+        .email-header {{
+          background-color: #4CAF50;
+          padding: 25px;
+          text-align: center;
+          color: #fff;
+        }}
+        .email-header h1 {{
+          margin: 0;
+          font-size: 24px;
+          font-weight: 500;
+        }}
+        .email-content {{
+          padding: 30px;
+          font-size: 16px;
+        }}
+        .btn {{
+          display: inline-block;
+          padding: 12px 25px;
+          background-color: #007BFF;
+          color: #fff;
+          text-decoration: none;
+          border-radius: 6px;
+          margin-top: 20px;
+          font-weight: 500;
+        }}
+        .btn:hover {{
+          background-color: #0056b3;
+        }}
+        .email-footer {{
+          background: #f9f9f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 12px;
+          color: #777;
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="email-container">
+        <div class="email-header">
+          <h1>Response to Your Ticket</h1>
+        </div>
+        <div class="email-content">
+          <p>Hello,</p>
+          <p>The client has responded to your ticket. Please check the details below:</p>
+          <p>{response_message}</p>
+          <p style="text-align: center;"><a href="{link}" class="btn">View Ticket</a></p>
+        </div>
+        <div class="email-footer">
+          <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+)
+
+# Reset Password Email Template
+reset_password_template = EmailTemplate(
+    subject="Password Reset Request",
+    template_content="""\
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        body {{
+          font-family: 'Roboto', Arial, sans-serif;
+          background-color: #f2f4f8;
+          padding: 20px;
+          color: #333;
+        }}
+        .email-container {{
+          max-width: 600px;
+          margin: 0 auto;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }}
+        .email-header {{
+          background-color: #4CAF50;
+          padding: 25px;
+          text-align: center;
+          color: #fff;
+        }}
+        .email-header h1 {{
+          margin: 0;
+          font-size: 24px;
+          font-weight: 500;
+        }}
+        .email-content {{
+          padding: 30px;
+          font-size: 16px;
+        }}
+        .btn {{
+          display: inline-block;
+          padding: 12px 25px;
+          background-color: #007BFF;
+          color: #fff;
+          text-decoration: none;
+          border-radius: 6px;
+          margin-top: 20px;
+          font-weight: 500;
+        }}
+        .btn:hover {{
+          background-color: #0056b3;
+        }}
+        .email-footer {{
+          background: #f9f9f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 12px;
+          color: #777;
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="email-container">
+        <div class="email-header">
+          <h1>Password Reset Request</h1>
+        </div>
+        <div class="email-content">
+          <p>Hello,</p>
+          <p>You can reset your password using the link below:</p>
+          <p style="text-align: center;"><a href="{reset_url}" class="btn">Reset Password</a></p>
+        </div>
+        <div class="email-footer">
+          <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+)
 
 
 def send_ticket_link(ticket):
@@ -297,6 +491,7 @@ def notify_client(ticket, message):
     send_email(notify_client_about_ticket_change_template, ticket.email, response_message=message, link=link)
     app.logger.info(f"Sent client notification about ticket {ticket.id}")
 
+
 def notify_user_about_ticket_change(ticket, message, ticket_type):
     from app.models import ProblemTicketUser, TrainingTicketUser, MiscTicketUser, User
 
@@ -318,6 +513,7 @@ def notify_user_about_ticket_change(ticket, message, ticket_type):
             app.logger.info(f"Sent user notification about ticket {ticket.id}")
         else:
             app.logger.error(f"User not found for ticket {ticket.id}")
+
 
 def send_reset_email(user):
     token = user.generate_reset_password_token()
