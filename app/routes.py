@@ -335,7 +335,10 @@ def send_ticket():
                     # Generate the new filename
                     date_str = datetime.now().strftime('%d-%m-%Y')
                     new_filename = f"{date_str}_{first_name}_{last_name}{os.path.splitext(filename)[1]}"
-                    photo.save(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
+                    full_path = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
+                    if not full_path.startswith(app.config['UPLOAD_FOLDER']):
+                        raise Exception("Invalid file path")
+                    photo.save(full_path)
                     photo_path = new_filename
                     app.logger.info("Photo uploaded: %s", photo_path)
                 except Exception as e:
