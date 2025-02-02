@@ -27,7 +27,7 @@ class PasswordPolicy:
             raise ValidationError('Password must contain at least one lowercase letter.')
         if self.require_digit and not re.search(r'\d', password):
             raise ValidationError('Password must contain at least one digit.')
-        if self.require_special and not re.search(r'[!@#$%^&*(),.?":{}|<>-_]', password):
+        if self.require_special and not re.search(r'[!@#$%^&*(),.?":{}|<>_\-]', password):
             raise ValidationError('Password must contain at least one special character.')
 
 class MessageForm(FlaskForm):
