@@ -230,5 +230,12 @@ app.logger.info('Scheduler started')
 import atexit
 atexit.register(lambda: scheduler.shutdown())
 
+from .blueprints.bp_auth import bp_auth
+from .blueprints.bp_admin import bp_admin
+
+app.register_blueprint(bp_auth)
+app.register_blueprint(bp_admin)
+
+
 from . import routes
 app.logger.info('Application started successfully')
