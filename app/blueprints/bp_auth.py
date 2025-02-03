@@ -32,11 +32,15 @@ def login():
                 flash('Logged in successfully.', 'success')
                 app.logger.info(f'User logged in: {user.username}')
 
-                if next_page and is_safe_url(next_page):
-                    print(f'Next Page: {next_page}')
-                    redirect(next_page)
-                    session.pop('next', None)  # Clear the 'next' after login
-                    return
+                if next_page:
+                    from urllib.parse import urlparse
+                    next_page = next_page.replace('\\', '')
+                    if not urlparse(next_page).netloc and not urlparse(next_page).scheme:
+                        print(f'Next Page: {next_page}')
+                        session.pop('next', None)  # Clear the 'next' after login
+                        return redirect(next_page)
+                    else:
+                        return redirect(url_for('home'))
                 else:
                     return redirect(url_for('home'))
         flash('Invalid username or password', 'danger')
