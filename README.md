@@ -11,7 +11,7 @@ A comprehensive ticketing system with multiple ticket types and user management.
 
 ## Installation
 
-Thre Projekt install instructions are based on ubuntu 22.04.
+The project install instructions are based on ubuntu 22.04.
 
 ### Step 1: Update the system to the newest version
 
