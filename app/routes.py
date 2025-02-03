@@ -1,15 +1,13 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urlparse, urljoin, unquote
-
 from PIL import Image
 from flask import jsonify, session, current_app, send_from_directory
-from flask_login import login_user, logout_user, login_required, current_user
+from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-
 from app import app
-from app.decorators import admin_required, ticket_owner_required
-from app.forms import MessageForm, LoginForm, PasswordResetRequestForm, PasswordResetForm, EditProfileForm, \
+from app.decorators import ticket_owner_required
+from app.forms import MessageForm, EditProfileForm, \
     ChangePasswordForm
 from app.models import Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, \
     TrainingTicketUser, MiscTicketUser, TicketHistory
@@ -37,42 +35,6 @@ def members():
     inactive_members = User.query.filter_by(active=False).all()  # Inaktive Mitglieder abrufen
     return render_template('members.html', active_members=active_members, inactive_members=inactive_members)
 
-@app.route('/request_password_reset', methods=['GET', 'POST'])
-def request_password_reset():
-    form = PasswordResetRequestForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
-        if user:
-            send_reset_email(user)
-        flash('Password reset instructions have been sent to your email.', 'info')
-        return redirect(url_for('login'))
-    return render_template('request_password_reset.html', form=form)
-
-def verify_reset_token(token, user_id):
-    return User.validate_reset_password_token(token, user_id)
-
-@app.route('/reset_password/<token>/<int:user_id>', methods=['GET', 'POST'])
-def reset_password(token, user_id):
-    user = User.query.get(user_id)
-    if not user or not user.validate_reset_password_token(token, user_id):
-        flash('The reset link is invalid or has expired.', 'danger')
-        app.logger.warning(f'Invalid or expired reset link: {token}')
-        return redirect(url_for('request_password_reset'))
-
-    form = PasswordResetForm()
-    password_policy = current_app.config['PASSWORD_POLICY']
-
-    if form.validate_on_submit():
-        user.set_password(form.password.data)
-        db.session.commit()
-        flash('Your password has been reset!', 'success')
-        app.logger.info(f'Password reset for user: {user.username}')
-        return redirect(url_for('login'))
-    elif request.method == 'POST':
-        flash('Password requirements are not met. Please ensure your password meets all the criteria.', 'danger')
-        app.logger.warning(f'Password reset failed for user: {user.username}')
-
-    return render_template('reset_password.html', form=form, token=token, user_id=user_id, password_policy=password_policy)
 
 @app.route('/ticketverwaltung')
 @login_required
@@ -268,36 +230,7 @@ def mark_ticket_solved(ticket_id):
 
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
-# app/routes.py
-@app.route('/ticket/<int:ticket_id>/delete', methods=['POST'])
-@login_required
-@admin_required
-def delete_ticket(ticket_id):
-    ticket_type = request.form.get('ticket_type')
-    if ticket_type == 'problem':
-        ticket = ProblemTicket.query.get(ticket_id)
-        ProblemTicketUser.query.filter_by(problem_ticket_id=ticket_id).delete()
-    elif ticket_type == 'training':
-        ticket = TrainingTicket.query.get(ticket_id)
-        TrainingTicketUser.query.filter_by(training_ticket_id=ticket_id).delete()
-    elif ticket_type == 'misc':
-        ticket = MiscTicket.query.get(ticket_id)
-        MiscTicketUser.query.filter_by(misc_ticket_id=ticket_id).delete()
-    else:
-        app.logger.error(f'Invalid ticket type: {ticket_type}')
-        flash('Invalid ticket type.', 'danger')
-        return redirect(url_for('ticket_verwaltung'))
 
-    if ticket:
-        db.session.delete(ticket)
-        TicketHistory.query.filter_by(ticket_id=ticket_id, ticket_type=ticket_type).delete()
-        db.session.commit()
-        flash('Ticket deleted successfully.', 'success')
-    else:
-        app.logger.error(f'Ticket not found: {ticket_id}, {ticket_type}')
-        flash('Ticket not found.', 'danger')
-
-    return redirect(url_for('ticket_verwaltung'))
 
 
 @app.route('/send_ticket', methods=['GET', 'POST'])
@@ -412,41 +345,6 @@ def send_ticket():
     return render_template('ticket.html')
 
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    form = LoginForm()
-    next_page = session.get('next') or request.args.get('next')
-
-    if form.validate_on_submit():
-        user = User.query.filter_by(username=form.username.data).first()
-        if user:
-            if user.password_hash is None or user.password_hash == '':
-                send_reset_email(user)
-                flash('Your password is not set. A password reset email has been sent to you.', 'info')
-                return redirect(url_for('login'))
-            if user.check_password(form.password.data):
-                if not user.active:
-                    app.logger.warning(f'Inactive user tried to log in: {user.username}')
-                    flash('Your account is inactive. Please contact the administrator.', 'danger')
-                    return redirect(url_for('login'))
-                login_user(user)
-                user.last_login = datetime.now()  # Update last_login
-                db.session.commit()
-                flash('Logged in successfully.', 'success')
-                app.logger.info(f'User logged in: {user.username}')
-
-                if next_page and is_safe_url(next_page):
-                    print(f'Next Page: {next_page}')
-                    redirect(next_page)
-                    session.pop('next', None)  # Clear the 'next' after login
-                    return
-                else:
-                    return redirect(url_for('home'))
-        flash('Invalid username or password', 'danger')
-        app.logger.warning(f'Invalid login attempt for user: {form.username.data}')
-
-    return render_template('login.html', form=form)
-
 
 @login_required
 @app.route('/logout')
@@ -490,20 +388,6 @@ def load_more_messages(page):
     })
 
 
-@app.route('/delete_message/<int:message_id>', methods=['POST'])
-@login_required
-@admin_required
-def delete_message(message_id):
-    message = Message.query.get(message_id)
-    if message:
-        message.content = f'This Post was deleted by the Admin on {get_date_time()}'
-        message.deleted = True
-        db.session.commit()
-        app.logger.info(f'Message deleted: {message_id}')
-        return jsonify({'success': True})
-    app.logger.error(f'Message not found: {message_id}')
-    return jsonify({'error': 'Message not found'}), 404
-
 
 
 @app.route('/privacy_policy')
@@ -523,125 +407,11 @@ def archiv():
                            solved_training_tickets=solved_training_tickets,
                            solved_misc_tickets=solved_misc_tickets)
 
-@app.route('/admin/panel')
-@login_required
-@admin_required
-def admin_panel():
-    # Calculate statistics
-    six_months_ago = datetime.now() - timedelta(days=6*30)
-    total_tickets = (
-        db.session.query(ProblemTicket).filter(ProblemTicket.created_at >= six_months_ago).count() +
-        db.session.query(TrainingTicket).filter(TrainingTicket.created_at >= six_months_ago).count() +
-        db.session.query(MiscTicket).filter(MiscTicket.created_at >= six_months_ago).count()
-    )
-    solved_tickets = (
-        db.session.query(ProblemTicket).filter(ProblemTicket.created_at >= six_months_ago, ProblemTicket.status_id == 4).count() +
-        db.session.query(TrainingTicket).filter(TrainingTicket.created_at >= six_months_ago, TrainingTicket.status_id == 4).count() +
-        db.session.query(MiscTicket).filter(MiscTicket.created_at >= six_months_ago, MiscTicket.status_id == 4).count()
-    )
-
-
-    # Aliases for subqueries
-    problem_ticket_count = db.session.query(
-        ProblemTicketUser.user_id,
-        db.func.count(ProblemTicketUser.problem_ticket_id).label('problem_count')
-    ).join(ProblemTicket, ProblemTicket.id == ProblemTicketUser.problem_ticket_id).filter(
-        ProblemTicket.status_id == 4
-    ).group_by(ProblemTicketUser.user_id).subquery()
-
-    training_ticket_count = db.session.query(
-        TrainingTicketUser.user_id,
-        db.func.count(TrainingTicketUser.training_ticket_id).label('training_count')
-    ).join(TrainingTicket, TrainingTicket.id == TrainingTicketUser.training_ticket_id).filter(
-        TrainingTicket.status_id == 4
-    ).group_by(TrainingTicketUser.user_id).subquery()
-
-    misc_ticket_count = db.session.query(
-        MiscTicketUser.user_id,
-        db.func.count(MiscTicketUser.misc_ticket_id).label('misc_count')
-    ).join(MiscTicket, MiscTicket.id == MiscTicketUser.misc_ticket_id).filter(
-        MiscTicket.status_id == 4
-    ).group_by(MiscTicketUser.user_id).subquery()
-
-    # User statistics
-    user_stats = db.session.query(
-        User.first_name,
-        User.last_name,
-        db.func.coalesce(problem_ticket_count.c.problem_count, 0).label('problem_count'),
-        db.func.coalesce(training_ticket_count.c.training_count, 0).label('training_count'),
-        db.func.coalesce(misc_ticket_count.c.misc_count, 0).label('misc_count')
-    ).outerjoin(problem_ticket_count, problem_ticket_count.c.user_id == User.id).outerjoin(
-        training_ticket_count, training_ticket_count.c.user_id == User.id).outerjoin(
-        misc_ticket_count, misc_ticket_count.c.user_id == User.id).all()
-
-    return render_template('admin_panel.html',
-                           total_tickets=total_tickets,
-                           solved_tickets=solved_tickets,
-                           user_stats=user_stats)
 
 from flask import render_template, request, redirect, url_for, flash
 from flask_login import login_required
 from app.models import User, db, RoleEnum, RankEnum
 
-@app.route('/members/administration', methods=['GET', 'POST'])
-@login_required
-@admin_required
-def members_administration():
-    if request.method == 'POST':
-        if 'create_user' in request.form:
-            new_user = User(
-                username=request.form.get('new_username'),
-                first_name=request.form.get('new_first_name'),
-                last_name=request.form.get('new_last_name'),
-                email=request.form.get('new_email'),
-                role=request.form.get('new_role'),
-                rank=request.form.get('new_rank'),
-                active=True,
-                active_from=datetime.now()
-            )
-            new_user.password_hash = ''  # Set no password for new user
-            db.session.add(new_user)
-            db.session.commit()
-            app.logger.info(f'New user created: {new_user.username}')
-            flash('New user created successfully.', 'success')
-        else:
-            user_id = request.form.get('user_id')
-            user = User.query.get(user_id)
-            if user:
-                if 'reset_password' in request.form:
-                    user.password_hash = ''  # Reset password
-                    app.logger.info(f'Password reset for user: {user.username}')
-                    flash('Password has been reset successfully.', 'success')
-                else:
-                    user.username = request.form.get('username')
-                    user.first_name = request.form.get('first_name')
-                    user.last_name = request.form.get('last_name')
-                    user.email = request.form.get('email')
-                    user.role = request.form.get('role')
-                    user.rank = request.form.get('rank')
-                    if 'set_inactive' in request.form:
-                        user.active = False
-                        user.active_until = datetime.now()
-                        app.logger.info(f'User deactivated: {user.username}')
-                    elif 'set_active' in request.form:
-                        user.active = True
-                        user.active_until = None
-                        app.logger.info(f'User activated: {user.username}')
-                    new_password = request.form.get('new_password')
-                    if new_password:
-                        user.set_password(new_password)
-                        app.logger.info(f'Password changed for user: {user.username}')
-                db.session.commit()
-                app.logger.info(f'User updated: {user.username}')
-                flash('User updated successfully.', 'success')
-            else:
-                app.logger.error(f'User not found: {user_id}')
-                flash('User not found.', 'danger')
-        return redirect(url_for('members_administration'))
-
-    active_users = User.query.filter_by(active=True).all()
-    inactive_users = User.query.filter_by(active=False).all()
-    return render_template('members_administration.html', active_users=active_users, inactive_users=inactive_users, roles=RoleEnum, ranks=RankEnum)
 
 @app.route('/impressum')
 def impressum():
