@@ -107,16 +107,23 @@
     // Sort function
     function sortTable(type, columnIndex) {
         const table = document.getElementById(type === 'active' ? 'activeMembersTable' : 'inactiveMembersTable');
-        const rows = Array.from(table.rows).slice(1);
+        const rows = Array.from(table.rows).slice(1); // Exclude the header row
         const isAscending = table.rows[0].cells[columnIndex].classList.toggle('asc');
 
         rows.sort((a, b) => {
             const aText = a.cells[columnIndex].textContent.trim();
             const bText = b.cells[columnIndex].textContent.trim();
-            return isAscending ? aText.localeCompare(bText) : bText.localeCompare(aText);
+
+            if (columnIndex === 3 || columnIndex === 4) { // Date columns
+                const aDate = new Date(aText.split('.').reverse().join('-'));
+                const bDate = new Date(bText.split('.').reverse().join('-'));
+                return isAscending ? aDate - bDate : bDate - aDate;
+            } else {
+                return isAscending ? aText.localeCompare(bText) : bText.localeCompare(aText);
+            }
         });
 
-        rows.forEach(row => table.appendChild(row)); // Append sorted rows to the table
+        rows.forEach(row => table.tBodies[0].appendChild(row)); // Append sorted rows to the table body
     }
 </script>
 {% endblock %}
