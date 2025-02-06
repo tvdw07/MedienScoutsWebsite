@@ -255,29 +255,8 @@ def send_ticket():
             steps_taken = ", ".join(steps)
             photo = request.files.get('photo')
             app.logger.info("Ticket submitted: %s, %s, %s, %s, %s, %s, %s", first_name, last_name, email, class_stufe, serial_number, problem_description, steps_taken)
-            photo_path = None
-            if photo:
-                if len(photo.read()) > 1 * 1024 * 1024:  # Validate file size 1MB
-                    flash('File size exceeds the limit of 1MB.', 'danger')
-                    return redirect(request.url)
-                filename = secure_filename(photo.filename)
-                if not allowed_file(photo.filename):  # Validate file type
-                    flash('Invalid file type.', 'danger')
-                    return redirect(request.url)
-                try:
-                    # Generate the new filename
-                    date_str = datetime.now().strftime('%d-%m-%Y')
-                    new_filename = f"{date_str}_{first_name}_{last_name}{os.path.splitext(filename)[1]}"
-                    full_path = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'], new_filename))
-                    if not full_path.startswith(app.config['UPLOAD_FOLDER']):
-                        raise Exception("Invalid file path")
-                    photo.save(full_path)
-                    photo_path = new_filename
-                    app.logger.info("Photo uploaded: %s", photo_path)
-                except Exception as e:
-                    app.logger.error(f"Error saving photo: {e}")
-                    flash('Error saving photo.', 'danger')
-                    return redirect(request.url)
+
+            photo_path = save_photo(photo, first_name, last_name)
 
             ticket = ProblemTicket(
                 first_name=first_name,
@@ -343,6 +322,77 @@ def send_ticket():
         return redirect(url_for('home'))
 
     return render_template('ticket.html')
+
+
+def save_photo(photo, first_name, last_name):
+    """
+    Speichert das hochgeladene Foto in dem konfigurierten Upload-Ordner.
+    Validiert Dateigröße, Dateityp und Pfad.
+    """
+    # Bestimme den Upload-Ordner (absoluter Pfad)
+    upload_folder = os.path.join(current_app.root_path, current_app.config['UPLOAD_FOLDER'])
+
+    # Stelle sicher, dass der Upload-Ordner existiert
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+    if not os.path.exists(upload_folder):
+        current_app.logger.error(f"Upload folder still does not exist: {upload_folder}")
+        flash('Server-Fehler: Upload-Verzeichnis konnte nicht erstellt werden.', 'danger')
+        return redirect(request.url)
+
+    # Prüfe, ob ein Foto übergeben wurde
+    if photo:
+        # Stelle sicher, dass die Dateigröße 1MB nicht überschreitet
+        # Wichtig: Den Datei-Cursor zurücksetzen, falls vorher schon gelesen wurde.
+        photo.seek(0, os.SEEK_END)
+        file_size = photo.tell()
+        photo.seek(0)
+        if file_size > 1 * 1024 * 1024:
+            flash('File size exceeds the limit of 1MB.', 'danger')
+            return redirect(request.url)
+
+        # Ursprünglichen Dateinamen säubern
+        original_filename = secure_filename(photo.filename)
+        if not allowed_file(original_filename):
+            flash('Invalid file type.', 'danger')
+            return redirect(request.url)
+
+        try:
+            # Generiere den neuen Dateinamen
+            date_str = datetime.now().strftime('%d-%m-%Y')
+            safe_first_name = secure_filename(first_name)
+            safe_last_name = secure_filename(last_name)
+            # Beispiel: "06-02-2025_Tim_muller.jpg"
+            new_filename = f"{date_str}_{safe_first_name}_{safe_last_name}{os.path.splitext(original_filename)[1]}"
+
+            # Erzeuge den kompletten Pfad zur Datei
+            full_path = os.path.normpath(os.path.join(upload_folder, new_filename))
+
+            # Verwende realpath, um symbolische Links und relative Pfade aufzulösen
+            upload_folder_real = os.path.realpath(upload_folder)
+            full_path_real = os.path.realpath(full_path)
+
+            # Debug-Ausgaben zur Überprüfung
+            current_app.logger.info("Upload folder real path: %s", upload_folder_real)
+            current_app.logger.info("Full file path real path: %s", full_path_real)
+
+            # Validierung: Stelle sicher, dass full_path_real innerhalb des upload_folder_real liegt
+            if os.path.commonpath([upload_folder_real, full_path_real]) != upload_folder_real:
+                current_app.logger.error(f"Invalid file path: {full_path_real}")
+                raise Exception("Invalid file path")
+
+            # Speichere die Datei
+            photo.save(full_path)
+            current_app.logger.info("Photo uploaded: %s", new_filename)
+            return new_filename
+
+        except Exception as e:
+            current_app.logger.error(f"Error saving photo: {e}")
+            flash('Error saving photo.', 'danger')
+            return redirect(request.url)
+    else:
+        flash('No photo uploaded.', 'danger')
+        return redirect(request.url)
 
 
 
@@ -483,38 +533,80 @@ def profile():
         print('Form validated successfully.')
 
         # Ensure the upload folder exists
-        upload_folder = os.path.join(current_app.root_path, app.config['USER_PROFILES'])
+        upload_folder = os.path.join(current_app.root_path, current_app.config['USER_PROFILES'])
         if not os.path.exists(upload_folder):
-            os.makedirs(upload_folder)  # Create the directory if it doesn't exist
+            os.makedirs(upload_folder)
+        # Ermitteln Sie den absoluten, kanonischen Pfad des Upload-Ordners
+        upload_folder_real = os.path.realpath(upload_folder)
 
+        # -----------------------
+        # 1. Profilbild-Upload
+        # -----------------------
         if form.profile_image.data:
-            filename = secure_filename(form.profile_image.data.filename)
-            new_filename = f"{current_user.first_name}_{current_user.last_name}{os.path.splitext(filename)[1]}"
-            new_filename = new_filename.replace(' ', '_')  # Replace spaces with underscores
+            # Ursprünglichen Dateinamen sichern
+            original_filename = secure_filename(form.profile_image.data.filename)
+            # Auch Benutzereingaben sanitizen
+            safe_first_name = secure_filename(current_user.first_name)
+            safe_last_name = secure_filename(current_user.last_name)
+            # Erstelle neuen Dateinamen, z. B. "Tim_Mueller.jpg"
+            new_filename = f"{safe_first_name}_{safe_last_name}{os.path.splitext(original_filename)[1]}"
+            new_filename = new_filename.replace(' ', '_')
             print(f'Saving profile image as: {new_filename}')
-            file_path = os.path.join(upload_folder, new_filename)  # Use os.path.join here
-            form.profile_image.data.save(file_path)  # Save the file
 
-            # Resize the image
-            with Image.open(file_path) as img:
-                img.thumbnail((800, 800))  # Resize the image to a maximum of 800x800 pixels
-                img.save(file_path)  # Save the resized image
+            # Erzeuge den vollständigen Dateipfad
+            full_path = os.path.normpath(os.path.join(upload_folder, new_filename))
+            full_path_real = os.path.realpath(full_path)
+            # Validierung: Prüfen, ob der Dateipfad innerhalb des Upload-Ordners liegt
+            if os.path.commonpath([upload_folder_real, full_path_real]) != upload_folder_real:
+                current_app.logger.error(f"Invalid file path: {full_path_real}")
+                flash('Error saving profile image due to invalid file path.', 'danger')
+                return redirect(url_for('profile'))
+
+            try:
+                # Datei speichern
+                form.profile_image.data.save(full_path)
+            except Exception as e:
+                current_app.logger.error(f"Error saving profile image: {e}")
+                flash('Error saving profile image.', 'danger')
+                return redirect(url_for('profile'))
+
+            # Bild bearbeiten (z.B. verkleinern)
+            try:
+                with Image.open(full_path) as img:
+                    img.thumbnail((800, 800))  # Maximale Größe 800x800 Pixel
+                    img.save(full_path)
+            except Exception as e:
+                current_app.logger.error(f"Error processing image: {e}")
+                flash('Error processing profile image.', 'danger')
+                return redirect(url_for('profile'))
 
             current_user.profile_picture = new_filename
 
+        # ---------------------------
+        # 2. Profilbild löschen
+        # ---------------------------
         if form.delete_image.data:
             print('Delete image checkbox is checked.')
-
             print('Deleting profile image.')
-            # Use the current user's profile_picture attribute directly
-            filename = f"{current_user.first_name}_{current_user.last_name}.png".replace(' ', '_')
-            upload_folder_absolute = os.path.join(current_app.root_path, app.config['USER_PROFILES'])
-            file_path = os.path.join(upload_folder_absolute, filename)
-            if os.path.exists(file_path):
-                print(f'Deleting profile image: {file_path}')
-                os.remove(file_path)
-            current_user.profile_picture = None
+            # Falls ein Profilbild gesetzt ist, löschen wir es
+            if current_user.profile_picture:
+                file_path = os.path.join(upload_folder, current_user.profile_picture)
+                file_path = os.path.normpath(file_path)
+                file_path_real = os.path.realpath(file_path)
+                if os.path.exists(file_path_real) and os.path.commonpath(
+                        [upload_folder_real, file_path_real]) == upload_folder_real:
+                    print(f'Deleting profile image: {file_path_real}')
+                    try:
+                        os.remove(file_path_real)
+                    except Exception as e:
+                        current_app.logger.error(f"Error deleting profile image: {e}")
+                        flash('Error deleting profile image.', 'danger')
+                        return redirect(url_for('profile'))
+                current_user.profile_picture = None
 
+        # ---------------------------
+        # 3. Benutzerinformationen aktualisieren
+        # ---------------------------
         current_user.first_name = form.first_name.data
         current_user.last_name = form.last_name.data
         current_user.email = form.email.data
@@ -525,43 +617,60 @@ def profile():
     print('Rendering profile template.')
     return render_template('profile.html', form=form, password_form=password_form)
 
+
 @app.route('/profile_picture/<first_name>_<last_name>')
 @login_required
 def profile_picture(first_name, last_name):
-    # Decode and replace underscores with spaces
-    first_name = unquote(first_name).replace('_', ' ').strip()
-    last_name = unquote(last_name).replace('_', ' ').strip()
-    full_name = f"{first_name} {last_name}"
+    # Dekodiere die URL-Parameter: Ersetze Unterstriche durch Leerzeichen
+    first_name_decoded = unquote(first_name).replace('_', ' ').strip()
+    last_name_decoded = unquote(last_name).replace('_', ' ').strip()
+    full_name = f"{first_name_decoded} {last_name_decoded}"
     current_full_name = f"{current_user.first_name.strip()} {current_user.last_name.strip()}"
 
-    # Authorization check
+    # Autorisierungsprüfung: Nur der aktuelle User darf sein Profilbild abrufen
     if full_name != current_full_name:
         flash('You are not allowed to access this profile picture.', 'danger')
-        current_app.logger.warning(f'Unauthorized access to profile picture: {full_name} by {current_full_name}')
+        current_app.logger.warning(
+            f'Unauthorized access attempt: {full_name} by {current_full_name}'
+        )
         return redirect(url_for('profile'))
 
-    # Construct the filename and use an absolute path for existence check
-    filename = f"{first_name}_{last_name}.png".replace(' ', '_')
-    upload_folder_absolute = os.path.join(current_app.root_path, app.config['USER_PROFILES'])
-    file_path = os.path.normpath(os.path.join(upload_folder_absolute, filename))
+    # Versuchen, den Dateinamen aus dem Datenbankfeld 'photo' zu laden
+    # Falls dieser nicht gesetzt ist, wird der Dateiname aus Vor- und Nachname generiert.
+    photo_filename = getattr(current_user, 'photo', None)
+    if not photo_filename:
+        # Generiere den Dateinamen basierend auf den Benutzerdaten.
+        safe_first = secure_filename(current_user.first_name)
+        safe_last = secure_filename(current_user.last_name)
+        # Hier wird als Beispiel die Endung ".png" genutzt – passen Sie das bei Bedarf an.
+        photo_filename = f"{safe_first}_{safe_last}.png"
+        current_app.logger.info("No photo stored in DB; using generated filename: %s", photo_filename)
 
-    # Ensure the file path is within the upload folder
-    if not file_path.startswith(upload_folder_absolute):
+    # Verwende den ermittelten Dateinamen
+    filename = photo_filename
+
+    # Erzeuge den absoluten Pfad zum Upload-Ordner und zur Bilddatei
+    upload_folder = os.path.join(current_app.root_path, current_app.config['USER_PROFILES'])
+    upload_folder_real = os.path.realpath(upload_folder)
+    file_path = os.path.normpath(os.path.join(upload_folder, filename))
+    file_path_real = os.path.realpath(file_path)
+
+    # Validierung: Sicherstellen, dass der Dateipfad innerhalb des Upload-Ordners liegt
+    if os.path.commonpath([upload_folder_real, file_path_real]) != upload_folder_real:
         flash('Invalid file path.', 'danger')
-        current_app.logger.warning(f'Invalid file path access attempt: {file_path}')
+        current_app.logger.warning(f'Invalid file path access attempt: {file_path_real}')
         return redirect(url_for('profile'))
 
-    # Debugging output
-    print(f"Absolute file path being checked: {file_path}")
+    current_app.logger.info("Absolute file path being checked: %s", file_path_real)
 
-    # Serve the profile picture if it exists
-    if os.path.exists(file_path):
-        print('Profile picture found, serving the file.')
-        return send_from_directory(upload_folder_absolute, filename)
+    # Liefere das Profilbild, sofern vorhanden, ansonsten das Standardbild
+    if os.path.exists(file_path_real):
+        current_app.logger.info('Profile picture found, serving the file.')
+        return send_from_directory(upload_folder_real, filename)
     else:
-        # Serve default image if profile picture is not found
-        print('Profile picture not found, serving default image.')
+        current_app.logger.info('Profile picture not found, serving default image.')
         return send_from_directory(current_app.static_folder, 'images/default_profile.png')
+
 
 # app/routes.py
 @app.route('/send_password_reset_email', methods=['POST'])
