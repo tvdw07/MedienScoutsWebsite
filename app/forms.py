@@ -1,4 +1,3 @@
-import self
 from flask import current_app
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
@@ -9,6 +8,7 @@ from wtforms.validators import ValidationError
 import re
 
 
+# Custom validator for password policy
 class PasswordPolicy:
     def __init__(self, policy):
         self.min_length = policy['min_length']
@@ -30,20 +30,28 @@ class PasswordPolicy:
         if self.require_special and not re.search(r'[!@#$%^&*(),.?":{}|<>_\-]', password):
             raise ValidationError('Password must contain at least one special character.')
 
+
+# Form for posting messages
 class MessageForm(FlaskForm):
     content = TextAreaField('Message', validators=[DataRequired()])
     submit = SubmitField('Post')
 
+
+# Form for user login
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
     password = PasswordField('Password', validators=[DataRequired()])
     submit = SubmitField('Login')
 
+
+# Form for requesting password reset
 class PasswordResetRequestForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
     email = StringField('Email', validators=[DataRequired(), Email()])
     submit = SubmitField('Request Password Reset')
 
+
+# Form for resetting password
 class PasswordResetForm(FlaskForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,6 +62,8 @@ class PasswordResetForm(FlaskForm):
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField('Reset Password')
 
+
+# Form for editing user profile
 class EditProfileForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
@@ -62,6 +72,8 @@ class EditProfileForm(FlaskForm):
     delete_image = SubmitField('Delete Profile Image')
     submit = SubmitField('Save Changes')
 
+
+# Form for changing user password
 class ChangePasswordForm(FlaskForm):
     old_password = PasswordField('Old Password', validators=[DataRequired()])
     new_password = PasswordField('New Password', validators=[DataRequired()])

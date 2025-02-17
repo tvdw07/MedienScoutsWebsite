@@ -10,6 +10,8 @@ from sqlalchemy import DateTime
 
 db = SQLAlchemy()
 
+
+# Enum for user ranks
 class RankEnum(enum.Enum):
     KEIN = 'KEIN'
     BRONZE = 'BRONZE'
@@ -18,12 +20,14 @@ class RankEnum(enum.Enum):
     PLATIN = 'PLATIN'
 
 
-
+# Enum for user roles
 class RoleEnum(enum.Enum):
     ADMIN = 'ADMIN'
     TEACHER = 'TEACHER'
     MEMBER = 'MEMBER'
 
+
+# User model
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
@@ -34,8 +38,8 @@ class User(UserMixin, db.Model):
     role = db.Column(db.Enum(RoleEnum), nullable=False, default=RoleEnum.MEMBER)
     rank = db.Column(db.Enum(RankEnum), nullable=True, default=RankEnum.KEIN)
     active = db.Column(db.Boolean, default=True)
-    active_from = db.Column(DateTime, nullable=True)  # Zeitpunkt, ab dem das Mitglied aktiv ist
-    active_until = db.Column(DateTime, nullable=True)  # Zeitpunkt, bis zu dem das Mitglied aktiv ist
+    active_from = db.Column(DateTime, nullable=True)  # Date when the user becomes active
+    active_until = db.Column(DateTime, nullable=True)  # Date when the user becomes inactive
     last_login = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, password):
@@ -67,20 +71,24 @@ class User(UserMixin, db.Model):
             return None
         return None
 
+
+# Message model
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     author = db.Column(db.String(64), nullable=False)
-    role = db.Column(db.String(64), nullable=False)  # Add this line
+    role = db.Column(db.String(64), nullable=False)  # Role of the author
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, index=True, default=datetime.now())
-    deleted = db.Column(db.Boolean, default=False)  # Add this line
+    deleted = db.Column(db.Boolean, default=False)  # Indicates if the message is deleted
 
 
-
+# Ticket status model
 class TicketStatus(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     status = db.Column(db.String(50), nullable=False)
 
+
+# Problem ticket model
 class ProblemTicket(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
@@ -109,6 +117,8 @@ class ProblemTicket(db.Model):
             return None
         return ProblemTicket.query.get(data['ticket_id'])
 
+
+# Training ticket model
 class TrainingTicket(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     class_teacher = db.Column(db.String(50), nullable=False)
@@ -134,6 +144,8 @@ class TrainingTicket(db.Model):
             return None
         return TrainingTicket.query.get(data['ticket_id'])
 
+
+# Miscellaneous ticket model
 class MiscTicket(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
@@ -158,6 +170,8 @@ class MiscTicket(db.Model):
             return None
         return MiscTicket.query.get(data['ticket_id'])
 
+
+# Problem ticket user association model
 class ProblemTicketUser(db.Model):
     ticket_user_id = db.Column(db.Integer, primary_key=True)
     problem_ticket_id = db.Column(db.Integer, db.ForeignKey('problem_ticket.id'), nullable=False)  # ForeignKey to ProblemTicket
@@ -168,6 +182,8 @@ class ProblemTicketUser(db.Model):
     user = db.relationship('User', backref='problem_ticket_assignments')
     problem_ticket = db.relationship('ProblemTicket', backref='assigned_users')
 
+
+# Training ticket user association model
 class TrainingTicketUser(db.Model):
     ticket_user_id = db.Column(db.Integer, primary_key=True)
     training_ticket_id = db.Column(db.Integer, db.ForeignKey('training_ticket.id'), nullable=False)  # ForeignKey to TrainingTicket
@@ -179,6 +195,7 @@ class TrainingTicketUser(db.Model):
     training_ticket = db.relationship('TrainingTicket', backref='assigned_users')
 
 
+# Miscellaneous ticket user association model
 class MiscTicketUser(db.Model):
     ticket_user_id = db.Column(db.Integer, primary_key=True)
     misc_ticket_id = db.Column(db.Integer, db.ForeignKey('misc_ticket.id'), nullable=False)  # ForeignKey to MiscTicket
@@ -189,13 +206,15 @@ class MiscTicketUser(db.Model):
     user = db.relationship('User', backref='misc_ticket_assignments')
     misc_ticket = db.relationship('MiscTicket', backref='assigned_users')
 
+
+# Ticket history model
 class TicketHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ticket_type = db.Column(db.String(50), nullable=False)
     ticket_id = db.Column(db.Integer, nullable=False)
     message = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now())
-    author_type = db.Column(db.String(50), nullable=False)  # New column to indicate author type
+    author_type = db.Column(db.String(50), nullable=False)  # Indicates the type of author
 
     def __init__(self, ticket_type, ticket_id, message, author_type):
         self.ticket_type = ticket_type
