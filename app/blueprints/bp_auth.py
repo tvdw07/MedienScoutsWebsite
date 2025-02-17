@@ -3,7 +3,6 @@ from flask import Blueprint, session, request, flash, redirect, url_for, render_
 from flask_login import login_user
 from app import app, User, db
 from app.forms import LoginForm, PasswordResetForm, PasswordResetRequestForm
-from app.routes import is_safe_url
 from email_tools import send_reset_email
 
 bp_auth = Blueprint('auth', __name__)
