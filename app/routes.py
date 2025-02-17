@@ -2,15 +2,16 @@ import os
 from datetime import datetime
 from urllib.parse import urlparse, urljoin, unquote
 from PIL import Image
-from flask import jsonify, session, current_app, send_from_directory, request, render_template, redirect, url_for, flash
+from flask import jsonify, session, current_app, send_from_directory
 from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from app import app, db
+from app import app
 from app.decorators import ticket_owner_required
 from app.forms import MessageForm, EditProfileForm, ChangePasswordForm
 from app.models import Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
-    MiscTicketUser, TicketHistory, User
+    MiscTicketUser, TicketHistory
 from email_tools import send_ticket_link, notify_admin, notify_client, notify_user_about_ticket_change, send_reset_email
+
 
 def is_safe_url(target):
     """Überprüft, ob die angegebene URL sicher ist (gleiche Domain)"""
@@ -18,10 +19,12 @@ def is_safe_url(target):
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
+
 @app.before_request
 def before_request():
     """Setzt die Session auf permanent, um lange Anmeldungen zu ermöglichen"""
     session.permanent = True
+
 
 @app.route('/')
 def home():
@@ -29,12 +32,14 @@ def home():
     member_count = User.query.filter_by(active=True).count()
     return render_template('home.html', member_count=member_count)
 
+
 @app.route('/members')
 def members():
     """Listet aktive und inaktive Mitglieder auf"""
     active_members = User.query.filter_by(active=True).all()
     inactive_members = User.query.filter_by(active=False).all()
     return render_template('members.html', active_members=active_members, inactive_members=inactive_members)
+
 
 @app.route('/ticketverwaltung')
 @login_required
@@ -79,6 +84,7 @@ def ticket_verwaltung():
                            my_tickets=my_tickets,
                            total_open_tickets=total_open_tickets)
 
+
 @app.route('/ticket/<string:ticket_type>/<int:ticket_id>/details')
 @login_required
 def ticket_details(ticket_type, ticket_id):
@@ -101,6 +107,7 @@ def ticket_details(ticket_type, ticket_id):
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket_id).order_by(
         TicketHistory.created_at).all()
     return render_template('ticket_details.html', ticket=ticket, ticket_type=ticket_type, ticket_history=ticket_history)
+
 
 @app.route('/ticket/<int:ticket_id>/claim', methods=['POST'])
 @login_required
@@ -139,8 +146,8 @@ def claim_ticket(ticket_id):
 @login_required
 @ticket_owner_required
 def request_help(ticket_id):
+    """Request help for a specific ticket"""
     ticket_type = request.form.get('ticket_type')
-    print(f'Ticket Type: {ticket_type}')
     if ticket_type == 'problem':
         ticket = ProblemTicket.query.get(ticket_id)
     elif ticket_type == 'training':
@@ -152,7 +159,7 @@ def request_help(ticket_id):
         return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
     notify_admin(ticket, ticket_type, 'Help is requested for the following ticket:')
-    flash('Help request has been sent for ticket ID: {}'.format(ticket_id), 'info')
+    flash(f'Help request has been sent for ticket ID: {ticket_id}', 'info')
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
@@ -160,12 +167,12 @@ def request_help(ticket_id):
 @login_required
 @ticket_owner_required
 def submit_response(ticket_id):
+    """Submit a response for a specific ticket"""
     response_message = request.form.get('response_message')
     ticket_type = request.form.get('ticket_type')
     if not ticket_type:
         flash('Ticket type is required.', 'danger')
         return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
-
 
     # Update the ticket status to 3
     if ticket_type == 'problem':
@@ -188,7 +195,7 @@ def submit_response(ticket_id):
 
     notify_client(ticket, response_message)
 
-    flash('Response has been submitted for ticket ID: {}'.format(ticket_id), 'info')
+    flash(f'Response has been submitted for ticket ID: {ticket_id}', 'info')
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
@@ -196,10 +203,8 @@ def submit_response(ticket_id):
 @login_required
 @ticket_owner_required
 def mark_ticket_solved(ticket_id):
-    print(f'Ticket ID: {ticket_id}')
-    print("Trying to find ticket_type")
+    """Mark a specific ticket as solved"""
     ticket_type = request.form.get('ticket_type')
-    print(f'Ticket Type: {ticket_type}')
 
     if ticket_type == 'problem':
         ticket = ProblemTicket.query.get(ticket_id)
@@ -222,17 +227,16 @@ def mark_ticket_solved(ticket_id):
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
-
-
 @app.route('/send_ticket', methods=['GET', 'POST'])
 def send_ticket():
+    """Handles the submission of different types of tickets"""
     if request.method == 'POST':
         ticket_type = request.form.get('ticket_type')
-        print(f'Ticket type: {ticket_type}')
-
 
         if ticket_type == 'problem':
-            if not request.form.get('first_name') or not request.form.get('last_name') or not request.form.get('email_problem') or not request.form.get('class') or not request.form.get('problem_description') or not request.form.getlist('steps'):
+            if not request.form.get('first_name') or not request.form.get('last_name') or not request.form.get(
+                    'email_problem') or not request.form.get('class') or not request.form.get(
+                'problem_description') or not request.form.getlist('steps'):
                 flash('Please fill in all the required fields.', 'danger')
                 return redirect(request.url)
             first_name = request.form.get('first_name')
@@ -245,7 +249,8 @@ def send_ticket():
             steps = request.form.getlist('steps')
             steps_taken = ", ".join(steps)
             photo = request.files.get('photo')
-            app.logger.info("Ticket submitted: %s, %s, %s, %s, %s, %s, %s", first_name, last_name, email, class_stufe, serial_number, problem_description, steps_taken)
+            app.logger.info("Ticket submitted: %s, %s, %s, %s, %s, %s, %s", first_name, last_name, email, class_stufe,
+                            serial_number, problem_description, steps_taken)
 
             photo_path = save_photo(photo, first_name, last_name)
 
@@ -264,7 +269,9 @@ def send_ticket():
             db.session.add(ticket)
 
         elif ticket_type == 'fortbildung':
-            if not request.form.get('class_teacher') or not request.form.get('email_fortbildung') or not request.form.get('training_type') or not request.form.get('training_reason') or not request.form.get('proposed_date'):
+            if not request.form.get('class_teacher') or not request.form.get(
+                    'email_fortbildung') or not request.form.get('training_type') or not request.form.get(
+                'training_reason') or not request.form.get('proposed_date'):
                 flash('Please fill in all the required fields.', 'danger')
                 return redirect(request.url)
             class_teacher = request.form.get('class_teacher')
@@ -272,7 +279,8 @@ def send_ticket():
             training_type = request.form.get('training_type')
             training_reason = request.form.get('training_reason')
             proposed_date = request.form.get('proposed_date')
-            app.logger.info("Ticket submitted: %s, %s, %s, %s, %s", class_teacher, email, training_type, training_reason, proposed_date)
+            app.logger.info("Ticket submitted: %s, %s, %s, %s, %s", class_teacher, email, training_type,
+                            training_reason, proposed_date)
             ticket = TrainingTicket(
                 class_teacher=class_teacher,
                 email=email,
@@ -285,7 +293,9 @@ def send_ticket():
             db.session.add(ticket)
 
         else:
-            if not request.form.get('first_name_sonstiges') or not request.form.get('last_name_sonstiges') or not request.form.get('email_sonstiges') or not request.form.get('message_sonstiges'):
+            if not request.form.get('first_name_sonstiges') or not request.form.get(
+                    'last_name_sonstiges') or not request.form.get('email_sonstiges') or not request.form.get(
+                'message_sonstiges'):
                 flash('Please fill in all the required fields.', 'danger')
                 return redirect(request.url)
             first_name = request.form.get('first_name_sonstiges')
@@ -333,7 +343,7 @@ def save_photo(photo, first_name, last_name):
 
     # Prüfe, ob ein Foto übergeben wurde
     if photo:
-        # Stelle sicher, dass die Dateigröße 1MB nicht überschreitet
+        # Stelle sicher, dass die Dateigröße (1 MB) nicht überschreitet
         # Wichtig: Den Datei-Cursor zurücksetzen, falls vorher schon gelesen wurde.
         photo.seek(0, os.SEEK_END)
         file_size = photo.tell()
@@ -386,7 +396,6 @@ def save_photo(photo, first_name, last_name):
         return redirect(request.url)
 
 
-
 @login_required
 @app.route('/logout')
 def logout():
@@ -411,6 +420,7 @@ def forum():
     messages = Message.query.order_by(Message.timestamp.desc()).paginate(page=page, per_page=5)
     return render_template('forum.html', form=form, messages=messages.items, pagination=messages)
 
+
 @app.route('/load_more_messages/<int:page>', methods=['GET'])
 @login_required
 def load_more_messages(page):
@@ -429,8 +439,6 @@ def load_more_messages(page):
     })
 
 
-
-
 @app.route('/privacy_policy')
 def privacy_policy():
     return render_template('privacy_policy.html')
@@ -439,10 +447,15 @@ def privacy_policy():
 @app.route('/archiv')
 @login_required
 def archiv():
+    """
+    Displays the archive of solved tickets.
+    """
+    # Retrieve all solved tickets by type
     solved_problem_tickets = ProblemTicket.query.filter_by(status_id=4).all()
     solved_training_tickets = TrainingTicket.query.filter_by(status_id=4).all()
     solved_misc_tickets = MiscTicket.query.filter_by(status_id=4).all()
 
+    # Render the archive template with the solved tickets
     return render_template('archiv.html',
                            solved_problem_tickets=solved_problem_tickets,
                            solved_training_tickets=solved_training_tickets,
@@ -461,20 +474,27 @@ def impressum():
 
 @app.route('/ticket/<token>', methods=['GET', 'POST'])
 def view_ticket(token):
+    """
+    Displays the details of a ticket based on a token and allows users to submit responses.
+    """
     ticket_type = None
+    # Determine the ticket type and retrieve the ticket using the token
     for TicketModel, type_name in [(ProblemTicket, 'problem'), (TrainingTicket, 'training'), (MiscTicket, 'misc')]:
         ticket = TicketModel.verify_token(token)
         if ticket:
             ticket_type = type_name
             break
 
+    # If the ticket is not found or the token is invalid, log an error and redirect to the home page
     if not ticket:
         app.logger.error(f'Invalid or expired token: {token}')
         flash('Invalid or expired token', 'danger')
         return redirect(url_for('home'))
 
+    # Handle the form submission for ticket response
     if request.method == 'POST':
         response_message = request.form.get('response_message')
+        # Determine the author type based on the ticket type
         if ticket_type == 'problem':
             author_type = ticket.first_name + ' ' + ticket.last_name
         elif ticket_type == 'training':
@@ -482,14 +502,17 @@ def view_ticket(token):
         else:
             author_type = ticket.first_name + ' ' + ticket.last_name
 
+        # Log the ticket message and notify the user about the ticket change
         log_ticket_message(ticket_type, ticket.id, response_message, author_type)
         flash('Your response has been submitted.', 'success')
-
         notify_user_about_ticket_change(ticket, response_message, ticket_type)
 
+        # Redirect to the same view to display the updated ticket details
         return redirect(url_for('view_ticket', token=token, ticket=ticket))
 
-    ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket.id).order_by(TicketHistory.created_at).all()
+    # Retrieve the ticket history and render the ticket details template
+    ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket.id).order_by(
+        TicketHistory.created_at).all()
 
     return render_template('view_ticket.html', ticket=ticket, token=token, ticket_history=ticket_history)
 
@@ -504,9 +527,11 @@ def log_ticket_message(ticket_type, ticket_id, message, author_type):
     db.session.add(history_entry)
     db.session.commit()
 
+
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def get_date_time():
     from datetime import datetime
@@ -697,12 +722,15 @@ def profile_picture(first_name, last_name):
         return send_from_directory(current_app.static_folder, 'images/default_profile.png')
 
 
-# app/routes.py
 @app.route('/send_password_reset_email', methods=['POST'])
 @login_required
 def send_password_reset_email():
+    """
+    Sends a password reset email to the current user.
+    """
     user = current_user
     if user:
+        # Send the password reset email
         send_reset_email(user)
         flash('Password reset instructions have been sent to your email.', 'info')
     else:
