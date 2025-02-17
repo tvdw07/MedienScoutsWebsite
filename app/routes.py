@@ -2,49 +2,50 @@ import os
 from datetime import datetime
 from urllib.parse import urlparse, urljoin, unquote
 from PIL import Image
-from flask import jsonify, session, current_app, send_from_directory
+from flask import jsonify, session, current_app, send_from_directory, request, render_template, redirect, url_for, flash
 from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from app import app
+from app import app, db
 from app.decorators import ticket_owner_required
-from app.forms import MessageForm, EditProfileForm, \
-    ChangePasswordForm
-from app.models import Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, \
-    TrainingTicketUser, MiscTicketUser, TicketHistory
+from app.forms import MessageForm, EditProfileForm, ChangePasswordForm
+from app.models import Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
+    MiscTicketUser, TicketHistory, User
 from email_tools import send_ticket_link, notify_admin, notify_client, notify_user_about_ticket_change, send_reset_email
 
-
 def is_safe_url(target):
+    """Überprüft, ob die angegebene URL sicher ist (gleiche Domain)"""
     ref_url = urlparse(request.host_url)
     test_url = urlparse(urljoin(request.host_url, target))
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 @app.before_request
 def before_request():
+    """Setzt die Session auf permanent, um lange Anmeldungen zu ermöglichen"""
     session.permanent = True
 
 @app.route('/')
 def home():
+    """Startseite mit der Anzahl der aktiven Mitglieder"""
     member_count = User.query.filter_by(active=True).count()
     return render_template('home.html', member_count=member_count)
 
-
 @app.route('/members')
 def members():
-    active_members = User.query.filter_by(active=True).all()  # Aktive Mitglieder abrufen
-    inactive_members = User.query.filter_by(active=False).all()  # Inaktive Mitglieder abrufen
+    """Listet aktive und inaktive Mitglieder auf"""
+    active_members = User.query.filter_by(active=True).all()
+    inactive_members = User.query.filter_by(active=False).all()
     return render_template('members.html', active_members=active_members, inactive_members=inactive_members)
-
 
 @app.route('/ticketverwaltung')
 @login_required
 def ticket_verwaltung():
-    # Fetch all open tickets
+    """Übersicht über offene Tickets und eigene Tickets des Nutzers"""
+    # Offene Tickets abrufen
     open_problem_tickets = ProblemTicket.query.filter_by(status_id=1).all()
     open_training_tickets = TrainingTicket.query.filter_by(status_id=1).all()
     open_misc_tickets = MiscTicket.query.filter_by(status_id=1).all()
 
-    # Add type attribute to each ticket
+    # Ticket-Typ hinzufügen
     for ticket in open_problem_tickets:
         ticket.type = 'problem'
     for ticket in open_training_tickets:
@@ -52,21 +53,15 @@ def ticket_verwaltung():
     for ticket in open_misc_tickets:
         ticket.type = 'misc'
 
-    # Fetch all tickets claimed by the current user that are not closed (status_id != 4)
+    # Eigene, nicht abgeschlossene Tickets abrufen
     my_problem_tickets = ProblemTicket.query.join(ProblemTicketUser).filter(
-        ProblemTicketUser.user_id == current_user.id,
-        ProblemTicket.status_id != 4
-    ).all()
+        ProblemTicketUser.user_id == current_user.id, ProblemTicket.status_id != 4).all()
     my_training_tickets = TrainingTicket.query.join(TrainingTicketUser).filter(
-        TrainingTicketUser.user_id == current_user.id,
-        TrainingTicket.status_id != 4
-    ).all()
+        TrainingTicketUser.user_id == current_user.id, TrainingTicket.status_id != 4).all()
     my_misc_tickets = MiscTicket.query.join(MiscTicketUser).filter(
-        MiscTicketUser.user_id == current_user.id,
-        MiscTicket.status_id != 4
-    ).all()
+        MiscTicketUser.user_id == current_user.id, MiscTicket.status_id != 4).all()
 
-    # Add type attribute to each claimed ticket
+    # Ticket-Typ hinzufügen
     for ticket in my_problem_tickets:
         ticket.type = 'problem'
     for ticket in my_training_tickets:
@@ -74,10 +69,7 @@ def ticket_verwaltung():
     for ticket in my_misc_tickets:
         ticket.type = 'misc'
 
-    # Combine all claimed tickets
     my_tickets = my_problem_tickets + my_training_tickets + my_misc_tickets
-
-    # Count total open tickets
     total_open_tickets = len(open_problem_tickets) + len(open_training_tickets) + len(open_misc_tickets)
 
     return render_template('ticketverwaltung.html',
@@ -87,10 +79,11 @@ def ticket_verwaltung():
                            my_tickets=my_tickets,
                            total_open_tickets=total_open_tickets)
 
-
 @app.route('/ticket/<string:ticket_type>/<int:ticket_id>/details')
 @login_required
 def ticket_details(ticket_type, ticket_id):
+    """Zeigt die Details eines bestimmten Tickets an"""
+    ticket = None
     if ticket_type == 'problem':
         ticket = ProblemTicket.query.get(ticket_id)
     elif ticket_type == 'training':
@@ -98,48 +91,46 @@ def ticket_details(ticket_type, ticket_id):
     elif ticket_type == 'misc':
         ticket = MiscTicket.query.get(ticket_id)
     else:
-        flash('Invalid ticket type.', 'danger')
+        flash('Ungültiger Ticket-Typ.', 'danger')
         return redirect(url_for('ticket_verwaltung'))
 
     if not ticket:
-        flash('Ticket not found.', 'danger')
+        flash('Ticket nicht gefunden.', 'danger')
         return redirect(url_for('ticket_verwaltung'))
 
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket_id).order_by(
         TicketHistory.created_at).all()
-
     return render_template('ticket_details.html', ticket=ticket, ticket_type=ticket_type, ticket_history=ticket_history)
-
 
 @app.route('/ticket/<int:ticket_id>/claim', methods=['POST'])
 @login_required
 def claim_ticket(ticket_id):
+    """Ein Ticket wird von einem Nutzer übernommen"""
     user_id = request.form.get('user_id')
     ticket_type = request.form.get('ticket_type')
-
     try:
         if ticket_type == 'problem':
             ticket = ProblemTicket.query.get(ticket_id)
-            ticket_user = ProblemTicketUser(ticket_user_id=None, problem_ticket_id=ticket_id, user_id=user_id)
+            ticket_user = ProblemTicketUser(problem_ticket_id=ticket_id, user_id=user_id)
         elif ticket_type == 'training':
             ticket = TrainingTicket.query.get(ticket_id)
-            ticket_user = TrainingTicketUser(ticket_user_id=None, training_ticket_id=ticket_id, user_id=user_id)
+            ticket_user = TrainingTicketUser(training_ticket_id=ticket_id, user_id=user_id)
         elif ticket_type == 'misc':
             ticket = MiscTicket.query.get(ticket_id)
-            ticket_user = MiscTicketUser(ticket_user_id=None, misc_ticket_id=ticket_id, user_id=user_id)
+            ticket_user = MiscTicketUser(misc_ticket_id=ticket_id, user_id=user_id)
         else:
-            app.logger.error(f'Invalid ticket type: {ticket_type}')
-            flash('Invalid ticket type.', 'danger')
+            app.logger.error(f'Ungültiger Ticket-Typ: {ticket_type}')
+            flash('Ungültiger Ticket-Typ.', 'danger')
             return redirect(url_for('ticket_verwaltung'))
 
-        ticket.status_id = 2
+        ticket.status_id = 2  # Ticket wird als in Bearbeitung markiert
         db.session.add(ticket_user)
         db.session.commit()
-        flash('Ticket claimed successfully.', 'success')
+        flash('Ticket erfolgreich übernommen.', 'success')
     except Exception as e:
         db.session.rollback()
-        flash(f'Error claiming ticket', 'danger')
-        app.logger.error(f'Error claiming ticket: {e}')
+        flash('Fehler beim Übernehmen des Tickets.', 'danger')
+        app.logger.error(f'Fehler beim Übernehmen des Tickets: {e}')
 
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
