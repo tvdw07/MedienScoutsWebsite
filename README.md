@@ -89,6 +89,12 @@ CREATE TABLE message (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE ticket_status (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  status varchar(50) NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 CREATE TABLE misc_ticket (
   id int(11) NOT NULL AUTO_INCREMENT,
   first_name varchar(50) NOT NULL,
@@ -101,6 +107,24 @@ CREATE TABLE misc_ticket (
   KEY status_id (status_id),
   CONSTRAINT misc_ticket_ibfk_1 FOREIGN KEY (status_id) REFERENCES ticket_status (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE user (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  username varchar(150) NOT NULL,
+  password_hash varchar(512) DEFAULT NULL,
+  email varchar(120) NOT NULL,
+  first_name varchar(50) NOT NULL,
+  last_name varchar(50) NOT NULL,
+  role enum('ADMIN','TEACHER','MEMBER') NOT NULL DEFAULT 'MEMBER',
+  rank enum('KEIN','BRONZE','SILBER','GOLD','PLATIN') DEFAULT 'KEIN',
+  active tinyint(1) DEFAULT 1,
+  active_from datetime DEFAULT NULL,
+  active_until datetime DEFAULT NULL,
+  last_login datetime DEFAULT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY username (username),
+  UNIQUE KEY email (email)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE misc_ticket_user (
   ticket_user_id int(11) NOT NULL AUTO_INCREMENT,
@@ -153,11 +177,6 @@ CREATE TABLE ticket_history (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-CREATE TABLE ticket_status (
-  id int(11) NOT NULL AUTO_INCREMENT,
-  status varchar(50) NOT NULL,
-  PRIMARY KEY (id)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 INSERT INTO ticket_status (id, status) 
 VALUES 
@@ -193,24 +212,6 @@ CREATE TABLE training_ticket_user (
   CONSTRAINT training_ticket_user_ibfk_1 FOREIGN KEY (training_ticket_id) REFERENCES training_ticket (id),
   CONSTRAINT training_ticket_user_ibfk_2 FOREIGN KEY (user_id) REFERENCES user (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
-CREATE TABLE user (
-  id int(11) NOT NULL AUTO_INCREMENT,
-  username varchar(150) NOT NULL,
-  password_hash varchar(512) DEFAULT NULL,
-  email varchar(120) NOT NULL,
-  first_name varchar(50) NOT NULL,
-  last_name varchar(50) NOT NULL,
-  role enum('ADMIN','TEACHER','MEMBER') NOT NULL DEFAULT 'MEMBER',
-  rank enum('KEIN','BRONZE','SILBER','GOLD','PLATIN') DEFAULT 'KEIN',
-  active tinyint(1) DEFAULT 1,
-  active_from datetime DEFAULT NULL,
-  active_until datetime DEFAULT NULL,
-  last_login datetime DEFAULT NULL,
-  PRIMARY KEY (id),
-  UNIQUE KEY username (username),
-  UNIQUE KEY email (email)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
 ### Step 8: (Optional) Test the application
