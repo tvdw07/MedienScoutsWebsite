@@ -9,6 +9,7 @@ from flask_wtf import CSRFProtect
 from sqlalchemy import text  # Import text function
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.security import generate_password_hash
 
 from .models import db, User, ProblemTicket, ProblemTicketUser, TicketHistory, TrainingTicket, TrainingTicketUser, \
     MiscTicket, MiscTicketUser
@@ -229,6 +230,24 @@ app.logger.info('Scheduler started')
 # Shut down the scheduler when exiting the app
 import atexit
 atexit.register(lambda: scheduler.shutdown())
+
+# Create Admin user if not exists with default credentials admin and admin
+with app.app_context():
+    admin_user = User.query.filter_by(role='ADMIN').first()
+    if not admin_user:
+        passwordhash = generate_password_hash('admin')
+        admin = User(
+            username='admin',
+            password_hash=passwordhash,
+            first_name='Admin',
+            last_name='User',
+            role='ADMIN',
+            email='admin@example.'
+        )
+        db.session.add(admin)
+        db.session.commit()
+        app.logger.warning('Admin user created with default credentials')
+
 
 from .blueprints.bp_auth import bp_auth
 from .blueprints.bp_admin import bp_admin
