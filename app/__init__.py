@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
+from flask_migrate import Migrate
 from flask_talisman import Talisman
 from flask import Flask, flash, render_template, redirect
 from flask_login import LoginManager, current_user
@@ -18,6 +19,7 @@ import config
 
 
 app = Flask(__name__)
+migrate = Migrate(app, db)
 
 # Set up logging
 if not os.path.exists('logs'):
@@ -64,32 +66,34 @@ csrf = CSRFProtect(app)
 csp = {
     'default-src': [
         '\'self\'',
-        'https://stackpath.bootstrapcdn.com',  # Allow Bootstrap CDN
-        'https://cdnjs.cloudflare.com',  # Allow other CDNs if needed
-        'https://cdn.jsdelivr.net'  # Allow jsDelivr CDN
+        'https://stackpath.bootstrapcdn.com',
+        'https://cdnjs.cloudflare.com',
+        'https://cdn.jsdelivr.net',
+        'https://code.jquery.com'  # Allow code.jquery.com
     ],
     'script-src': [
         '\'self\'',
-        '\'unsafe-inline\'',  # Allow inline scripts
-        'https://stackpath.bootstrapcdn.com',  # Allow Bootstrap scripts
-        'https://cdnjs.cloudflare.com',  # Allow other scripts if needed
-        'https://cdn.jsdelivr.net'  # Allow jsDelivr scripts
+        '\'unsafe-inline\'',
+        'https://stackpath.bootstrapcdn.com',
+        'https://cdnjs.cloudflare.com',
+        'https://cdn.jsdelivr.net',
+        'https://code.jquery.com'  # Allow code.jquery.com
     ],
     'style-src': [
         '\'self\'',
-        '\'unsafe-inline\'',  # Allow inline styles
-        'https://stackpath.bootstrapcdn.com',  # Allow Bootstrap styles
-        'https://cdnjs.cloudflare.com',  # Allow other styles if needed
-        'https://cdn.jsdelivr.net'  # Allow jsDelivr styles
+        '\'unsafe-inline\'',
+        'https://stackpath.bootstrapcdn.com',
+        'https://cdnjs.cloudflare.com',
+        'https://cdn.jsdelivr.net'
     ],
     'font-src': [
         '\'self\'',
-        'https://cdnjs.cloudflare.com',  # Allow Font Awesome fonts
-        'https://cdn.jsdelivr.net'  # Allow jsDelivr fonts
+        'https://cdnjs.cloudflare.com',
+        'https://cdn.jsdelivr.net'
     ],
     'img-src': [
         '\'self\'',
-        'data:'  # Allow data URLs for images
+        'data:'
     ]
 }
 

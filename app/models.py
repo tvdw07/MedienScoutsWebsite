@@ -221,3 +221,18 @@ class TicketHistory(db.Model):
         self.ticket_id = ticket_id
         self.message = message
         self.author_type = author_type
+
+
+class Privilege(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(50), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+
+
+class UserPrivilege(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    privilege_id = db.Column(db.Integer, db.ForeignKey('privilege.id'), nullable=False)
+
+    user = db.relationship('User', backref='user_privileges')
+    privilege = db.relationship('Privilege', backref='user_privileges')
