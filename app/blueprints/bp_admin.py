@@ -4,7 +4,7 @@ from flask_login import login_required
 from app import db, app, ProblemTicket, TrainingTicket, MiscTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, User
 from app.decorators import admin_required
-from app.models import RoleEnum, RankEnum, Message, TicketHistory
+from app.models import RoleEnum, RankEnum, Message, TicketHistory, Privilege, UserPrivilege
 from app.routes import get_date_time
 
 bp_admin = Blueprint('admin', __name__)
@@ -129,6 +129,114 @@ def members_administration():
     inactive_users = User.query.filter_by(active=False).all()
     return render_template('admin/members_administration.html', active_users=active_users,
                            inactive_users=inactive_users, roles=RoleEnum, ranks=RankEnum)
+
+
+@app.route('/members/user/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def user_detail(user_id):
+    if request.method == 'GET':
+        # Load all privileges from the database
+        privileges = Privilege.query.all()
+        privileges_data = [{'id': p.id, 'name': p.name} for p in privileges]
+
+        if user_id == 0:
+            # New user: return an empty structure plus privileges
+            return jsonify({
+                'user': {
+                    'id': 0,
+                    'username': '',
+                    'first_name': '',
+                    'last_name': '',
+                    'email': '',
+                    'role': '',
+                    'rank': '',
+                    'active': True
+                },
+                'user_privileges': [],
+                'all_privileges': privileges_data
+            })
+
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        user_data = {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'role': user.role.value,
+            'rank': user.rank.value if user.rank else '',
+            'active': user.active,
+        }
+        user_privileges = [up.privilege_id for up in user.user_privileges]
+        return jsonify({
+            'user': user_data,
+            'user_privileges': user_privileges,
+            'all_privileges': privileges_data
+        })
+
+    elif request.method == 'POST':
+        # Save updates for an existing user
+        data = request.json
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        user.username = data.get('username')
+        user.first_name = data.get('first_name')
+        user.last_name = data.get('last_name')
+        user.email = data.get('email')
+        user.role = RoleEnum(data.get('role'))
+        user.rank = RankEnum(data.get('rank'))
+        user.active = data.get('active', True)
+
+        new_password = data.get('new_password')
+        if new_password:
+            user.set_password(new_password)
+
+        # Update privileges: remove existing ones and add new ones
+        new_privs = data.get('privileges', [])
+        UserPrivilege.query.filter_by(user_id=user.id).delete()
+        for priv_id in new_privs:
+            user_priv = UserPrivilege(user_id=user.id, privilege_id=priv_id)
+            db.session.add(user_priv)
+
+        db.session.commit()
+        flash('User updated successfully.', 'success')
+        return jsonify({'message': 'User updated successfully'})
+
+
+@app.route('/members/user', methods=['POST'])
+@login_required
+@admin_required
+def create_user():
+    data = request.json
+    new_user = User(
+        username=data.get('username'),
+        first_name=data.get('first_name'),
+        last_name=data.get('last_name'),
+        email=data.get('email'),
+        role=RoleEnum(data.get('role')),
+        rank=RankEnum(data.get('rank')),
+        active=True,
+        active_from=datetime.now()
+    )
+    password = data.get('password')
+    if password:
+        new_user.set_password(password)
+    db.session.add(new_user)
+    db.session.commit()
+
+    # Assign privileges if provided
+    for priv_id in data.get('privileges', []):
+        user_priv = UserPrivilege(user_id=new_user.id, privilege_id=priv_id)
+        db.session.add(user_priv)
+    db.session.commit()
+
+    return jsonify({'message': 'User created successfully', 'user_id': new_user.id})
 
 
 @app.route('/delete_message/<int:message_id>', methods=['POST'])

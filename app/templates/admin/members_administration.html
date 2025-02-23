@@ -6,179 +6,275 @@
 <div class="container mt-4">
     <h1 class="mb-4">Member Management</h1>
 
+    <button id="createUserBtn" class="btn btn-primary mb-3">Create New User</button>
+
     <h2>Active Members</h2>
     <div class="table-responsive">
-        <table class="table table-bordered table-hover">
+        <table class="table table-bordered table-hover" id="activeUsersTable">
             <thead class="thead-dark">
-                <tr>
-                    <th>Username</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Rank</th>
-                    <th>Actions</th>
-                </tr>
+            <tr>
+                <th>Username</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Rank</th>
+            </tr>
             </thead>
             <tbody>
-                {% for user in active_users %}
-                <tr>
-                    <form method="POST" action="{{ url_for('members_administration') }}" onsubmit="return confirmUpdate(this);">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <td>
-                            <input type="hidden" name="user_id" value="{{ user.id }}">
-                            <input type="text" name="username" class="form-control form-control-sm" value="{{ user.username }}" required>
-                        </td>
-                        <td><input type="text" name="first_name" class="form-control form-control-sm" value="{{ user.first_name }}" required></td>
-                        <td><input type="text" name="last_name" class="form-control form-control-sm" value="{{ user.last_name }}" required></td>
-                        <td><input type="email" name="email" class="form-control form-control-sm" value="{{ user.email }}" required></td>
-                        <td>
-                            <select name="role" class="form-control form-control-sm" required>
-                                {% for role in roles %}
-                                <option value="{{ role.value }}" {% if user.role == role %}selected{% endif %}>{{ role.value }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <select name="rank" class="form-control form-control-sm" required>
-                                {% for rank in ranks %}
-                                <option value="{{ rank.value }}" {% if user.rank == rank %}selected{% endif %}>{{ rank.value }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                <button type="submit" class="btn btn-success btn-sm" data-toggle="tooltip" data-placement="top" title="Update Member">
-                                    <i class="fas fa-check"></i> Update
-                                </button>
-                                <button type="submit" name="set_inactive" class="btn btn-warning btn-sm" data-toggle="tooltip" data-placement="top" title="Set Inactive">
-                                    <i class="fas fa-user-slash"></i> Inactive
-                                </button>
-                                <button type="submit" name="reset_password" class="btn btn-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Reset Password">
-                                    <i class="fas fa-key"></i> Reset Password
-                                </button>
-                            </div>
-                        </td>
-                    </form>
-                </tr>
-                {% endfor %}
+            {% for user in active_users %}
+            <tr class="user-row" data-user-id="{{ user.id }}">
+                <td>{{ user.username }}</td>
+                <td>{{ user.first_name }}</td>
+                <td>{{ user.last_name }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.role.value }}</td>
+                <td>{{ user.rank.value if user.rank else '' }}</td>
+            </tr>
+            {% endfor %}
             </tbody>
         </table>
     </div>
 
     <h2>Inactive Members</h2>
     <div class="table-responsive">
-        <table class="table table-bordered table-hover">
+        <table class="table table-bordered table-hover" id="inactiveUsersTable">
             <thead class="thead-dark">
-                <tr>
-                    <th>Username</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Rank</th>
-                    <th>Actions</th>
-                </tr>
+            <tr>
+                <th>Username</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Rank</th>
+            </tr>
             </thead>
             <tbody>
-                {% for user in inactive_users %}
-                <tr>
-                    <form method="POST" action="{{ url_for('members_administration') }}" onsubmit="return confirmUpdate(this);">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <td>
-                            <input type="hidden" name="user_id" value="{{ user.id }}">
-                            <input type="text" name="username" class="form-control form-control-sm" value="{{ user.username }}" required>
-                        </td>
-                        <td><input type="text" name="first_name" class="form-control form-control-sm" value="{{ user.first_name }}" required></td>
-                        <td><input type="text" name="last_name" class="form-control form-control-sm" value="{{ user.last_name }}" required></td>
-                        <td><input type="email" name="email" class="form-control form-control-sm" value="{{ user.email }}" required></td>
-                        <td>
-                            <select name="role" class="form-control form-control-sm" required>
-                                {% for role in roles %}
-                                <option value="{{ role.value }}" {% if user.role == role %}selected{% endif %}>{{ role.value }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <select name="rank" class="form-control form-control-sm" required>
-                                {% for rank in ranks %}
-                                <option value="{{ rank.value }}" {% if user.rank == rank %}selected{% endif %}>{{ rank.value }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                <button type="submit" class="btn btn-success btn-sm" data-toggle="tooltip" data-placement="top" title="Update Member">
-                                    <i class="fas fa-check"></i> Update
-                                </button>
-                                <button type="submit" name="set_active" class="btn btn-primary btn-sm" data-toggle="tooltip" data-placement="top" title="Set Active">
-                                    <i class="fas fa-user-check"></i> Active
-                                </button>
-                                <button type="submit" name="reset_password" class="btn btn-secondary btn-sm" data-toggle="tooltip" data-placement="top" title="Reset Password">
-                                    <i class="fas fa-key"></i> Reset Password
-                                </button>
-                            </div>
-                        </td>
-                    </form>
-                </tr>
-                {% endfor %}
+            {% for user in inactive_users %}
+            <tr class="user-row" data-user-id="{{ user.id }}">
+                <td>{{ user.username }}</td>
+                <td>{{ user.first_name }}</td>
+                <td>{{ user.last_name }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.role.value }}</td>
+                <td>{{ user.rank.value if user.rank else '' }}</td>
+            </tr>
+            {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
-<h2>Create New Member</h2>
-<div class="card shadow mb-4">
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('members_administration') }}" onsubmit="return confirmCreateUser(this);">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group">
-                <label for="new_username">Username</label>
-                <input type="text" name="new_username" class="form-control" id="new_username" required>
-            </div>
-            <div class="form-group">
-                <label for="new_first_name">First Name</label>
-                <input type="text" name="new_first_name" class="form-control" id="new_first_name" required>
-            </div>
-            <div class="form-group">
-                <label for="new_last_name">Last Name</label>
-                <input type="text" name="new_last_name" class="form-control" id="new_last_name" required>
-            </div>
-            <div class="form-group">
-                <label for="new_email">Email</label>
-                <input type="email" name="new_email" class="form-control" id="new_email" required>
-            </div>
-            <div class="form-group">
-                <label for="new_role">Role</label>
-                <select name="new_role" class="form-control" id="new_role" required>
-                    {% for role in roles %}
-                    <option value="{{ role.value }}">{{ role.value }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="new_rank">Rank</label>
-                <select name="new_rank" class="form-control" id="new_rank" required>
-                    {% for rank in ranks %}
-                    <option value="{{ rank.value }}">{{ rank.value }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" name="create_user" class="btn btn-primary">Create User</button>
-        </form>
+<!-- User Detail Modal -->
+<div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="userModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <form id="userForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userModalLabel">User Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+                </div>
+                <div class="modal-body">
+                    <!-- Hidden field for user id -->
+                    <input type="hidden" id="user_id" name="user_id">
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="username">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="email">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="first_name">First Name</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" required>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="last_name">Last Name</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="role">Role</label>
+                            <select class="form-control" id="role" name="role" required>
+                                {% for role in roles %}
+                                <option value="{{ role.value }}">{{ role.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="rank">Rank</label>
+                            <select class="form-control" id="rank" name="rank" required>
+                                {% for rank in ranks %}
+                                <option value="{{ rank.value }}">{{ rank.value }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="new_password">New Password (leave blank if unchanged)</label>
+                        <input type="password" class="form-control" id="new_password" name="new_password">
+                    </div>
+                    <div class="form-group form-check">
+                        <input type="checkbox" class="form-check-input" id="active" name="active">
+                        <label class="form-check-label" for="active">Active</label>
+                    </div>
+                    <hr>
+                    <h5>Privileges</h5>
+                    <div id="privilegesContainer" class="form-group">
+                        <!-- Privilege checkboxes will be added dynamically -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="resetPasswordBtn" class="btn btn-secondary">Reset Password</button>
+                    <button type="submit" id="saveUserBtn" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-
 {% endblock %}
-
 {% block scripts %}
 <script>
-    function confirmUpdate(form) {
-        return confirm('Are you sure you want to update this member?');
-    }
+    // Set up global AJAX settings to include CSRF token in the header
+    $.ajaxSetup({
+      headers: {
+        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
+      }
+    });
 
-    function confirmCreateUser(form) {
-        return confirm('Are you sure you want to create this user?');
-    }
+    $(document).ready(function() {
+      // Your existing AJAX code for handling user rows and form submissions goes here.
+      $('.user-row').click(function() {
+        var userId = $(this).data('user-id');
+        $.ajax({
+            url: "{{ url_for('user_detail', user_id=0) }}".replace("0", userId),
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                var user = response.user;
+                $('#user_id').val(user.id);
+                $('#username').val(user.username);
+                $('#email').val(user.email);
+                $('#first_name').val(user.first_name);
+                $('#last_name').val(user.last_name);
+                $('#role').val(user.role);
+                $('#rank').val(user.rank);
+                $('#new_password').val('');
+                $('#active').prop('checked', user.active);
+
+                // Build privilege checkboxes
+                var privilegesContainer = $('#privilegesContainer');
+                privilegesContainer.empty();
+                $.each(response.all_privileges, function(index, privilege) {
+                    var checked = response.user_privileges.includes(privilege.id) ? 'checked' : '';
+                    privilegesContainer.append(
+                        '<div class="form-check">' +
+                        '<input class="form-check-input" type="checkbox" value="' + privilege.id + '" id="priv_' + privilege.id + '" ' + checked + '>' +
+                        '<label class="form-check-label" for="priv_' + privilege.id + '">' + privilege.name + '</label>' +
+                        '</div>'
+                    );
+                });
+                $('#userModalLabel').text('Edit User');
+                $('#saveUserBtn').text('Save Changes');
+                $('#userModal').modal('show');
+            },
+            error: function() {
+                alert('Error loading user details.');
+            }
+        });
+      });
+
+      // Click handler for the Create New User button
+      $('#createUserBtn').click(function() {
+          // Clear form fields
+          $('#userForm')[0].reset();
+          $('#user_id').val('');
+          $('#new_password').val('');
+          $.ajax({
+              url: "{{ url_for('user_detail', user_id=0) }}".replace("0", 0),
+              type: 'GET',
+              dataType: 'json',
+              success: function(response) {
+                  var privilegesContainer = $('#privilegesContainer');
+                  privilegesContainer.empty();
+                  $.each(response.all_privileges, function(index, privilege) {
+                      privilegesContainer.append(
+                          '<div class="form-check">' +
+                          '<input class="form-check-input" type="checkbox" value="' + privilege.id + '" id="priv_' + privilege.id + '">' +
+                          '<label class="form-check-label" for="priv_' + privilege.id + '">' + privilege.name + '</label>' +
+                          '</div>'
+                      );
+                  });
+                  $('#userModalLabel').text('Create New User');
+                  $('#saveUserBtn').text('Create User');
+                  $('#userModal').modal('show');
+              },
+              error: function() {
+                  alert('Error loading privileges.');
+              }
+          });
+      });
+
+      // Handle form submission (both update and create)
+      $('#userForm').submit(function(e) {
+          e.preventDefault();
+          if (!confirm('Are you sure you want to perform this action?')) {
+              return;
+          }
+          var userId = $('#user_id').val();
+          var privileges = [];
+          $('#privilegesContainer input:checkbox:checked').each(function() {
+              privileges.push(parseInt($(this).val()));
+          });
+          var payload = {
+              username:   $('#username').val(),
+              email:      $('#email').val(),
+              first_name: $('#first_name').val(),
+              last_name:  $('#last_name').val(),
+              role:       $('#role').val(),
+              rank:       $('#rank').val(),
+              active:     $('#active').is(':checked'),
+              new_password: $('#new_password').val(),
+              privileges: privileges
+          };
+          var ajaxOptions = {
+              contentType: 'application/json',
+              data: JSON.stringify(payload),
+              dataType: 'json',
+              success: function(response) {
+                  //alert(response.message);
+                  location.reload(); // refresh the page to update the tables
+              },
+              error: function(xhr) {
+                  alert('Error saving user data: ' + xhr.responseText);
+              }
+          };
+          if (userId) {
+              // Update existing user
+              ajaxOptions.url = "{{ url_for('user_detail', user_id=0) }}".replace("0", userId);
+              ajaxOptions.type = 'POST';
+          } else {
+              // Create new user
+              ajaxOptions.url = "{{ url_for('create_user') }}";
+              ajaxOptions.type = 'POST';
+          }
+          $.ajax(ajaxOptions);
+      });
+
+      // Reset Password button handler (example: simply clear the password field or perform further actions)
+      $('#resetPasswordBtn').click(function() {
+          if (confirm('Are you sure you want to reset the password for this user?')) {
+              $('#new_password').val('');
+              alert('Password will be reset on save.');
+          }
+      });
+    });
+
 </script>
 {% endblock %}
