@@ -214,6 +214,14 @@ CREATE TABLE training_ticket_user (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 ```
 
+Alternatively, you can use migrations to create the database schema.
+
+```bash
+flask db init
+flask db migrate
+flask db upgrade
+```
+
 ### Step 8: (Optional) Test the application
 
 ```bash
