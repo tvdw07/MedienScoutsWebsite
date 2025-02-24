@@ -41,6 +41,11 @@ body {
     line-height: 1.6;
 }
 
+/* Style for "requiared fields" */
+.req{
+    color:red
+}
+
 
 /* ===================================================================
    Button Styles
