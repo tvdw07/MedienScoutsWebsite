@@ -11,6 +11,7 @@ from app.decorators import admin_required
 from app.models import RoleEnum, RankEnum, Message, TicketHistory, Privilege, UserPrivilege
 from app.routes import get_date_time
 from email_tools import inform_admin
+import traceback
 
 bp_admin = Blueprint('admin', __name__)
 
@@ -94,7 +95,8 @@ def get_config():
             content = f.read()
         return jsonify({'success': True, 'content': content})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        app.logger.error(f"Error reading config file: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': 'An internal error has occurred.'}), 500
 
 
 @app.route('/admin/update_config', methods=['POST'])
@@ -126,7 +128,8 @@ def update_config():
             f.write(sanitized_content)
         return jsonify({'success': True, 'message': 'Config updated successfully.'})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        app.logger.error(f"Error updating config file: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': 'An internal error has occurred.'}), 500
 
 
 @app.route('/members/administration', methods=['GET', 'POST'])
