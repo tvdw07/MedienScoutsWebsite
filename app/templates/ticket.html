@@ -15,39 +15,43 @@
                 <option value="sonstiges">Sonstiges</option>
             </select>
         </div>
+        <!--Req message-->
+        <div id="req_message">
+            <label class="form-label">Pflichtfelder <span class="req">*</span></label>
+        </div>
 
         <!-- Problem Section -->
         <div id="problem_fields" class="border p-4 rounded mb-4">
             <h2 class="h4 mb-3">Problemdetails</h2>
             <div class="mb-3">
-                <label for="first_name" class="form-label">Vorname</label>
+                <label for="first_name" class="form-label">Vorname <span class="req">*</span></label>
                 <input type="text" class="form-control" id="first_name" name="first_name" placeholder="Ihr Vorname">
             </div>
             <div class="mb-3">
-                <label for="last_name" class="form-label">Nachname</label>
+                <label for="last_name" class="form-label">Nachname <span class="req">*</span></label>
                 <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Ihr Nachname">
             </div>
             <div class="mb-4">
-                <label for="email_problem" class="form-label">E-Mail-Adresse</label>
+                <label for="email_problem" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
                 <input type="email" class="form-control" id="email_problem" name="email_problem" placeholder="Ihre E-Mail-Adresse">
             </div>
             <div class="mb-3">
-                <label for="class" class="form-label">Klasse/Stufe</label>
+                <label for="class" class="form-label">Klasse/Stufe <span class="req">*</span></label>
                 <input type="text" class="form-control" id="class" name="class" placeholder="Klassenstufe">
             </div>
             <div class="mb-3">
-                <label for="serial_number" class="form-label">Seriennummer des betroffenen Geräts (optional)</label>
-                <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="Seriennummer">
+                <label for="serial_number" class="form-label">Seriennummer(optional)</label>
+                <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="Seriennummer des betroffenen Geräts">
             </div>
             <div class="mb-3">
-                <label for="problem_description" class="form-label">Beschreibung des Problems</label>
+                <label for="problem_description" class="form-label">Beschreibung des Problems <span class="req">*</span></label>
                 <textarea class="form-control" id="problem_description" name="problem_description" rows="5" placeholder="Bitte beschreiben Sie das Problem"></textarea>
             </div>
             <div class="mb-3">
-                <label class="form-label">Bisher unternommene Schritte</label>
+                <label class="form-label">Bisher unternommene Schritte <span class="req">*</span></label>
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="step1" name="steps" value="neugestartet">
-                    <label class="form-check-label" for="step1">Neugestartet</label>
+                    <label class="form-check-label" for="step1">Neugestartet <span class="req">*</span></label>
                 </div>
                 <div id="additional-steps" class="mt-2"></div>
                 <div class="input-group mt-2">
@@ -65,23 +69,23 @@
         <div id="fortbildung_fields" class="border p-4 rounded mb-4" style="display: none;">
             <h2 class="h4 mb-3">Fortbildungsdetails</h2>
             <div class="mb-3">
-                <label for="class_teacher" class="form-label">Klassenlehrer</label>
+                <label for="class_teacher" class="form-label">Klassenlehrer <span class="req">*</span></label>
                 <input type="text" class="form-control" id="class_teacher" name="class_teacher" placeholder="Name des Klassenlehrers">
             </div>
             <div class="mb-4">
-                <label for="email_fortbildung" class="form-label">E-Mail-Adresse</label>
+                <label for="email_fortbildung" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
                 <input type="email" class="form-control" id="email_fortbildung" name="email_fortbildung" placeholder="Ihre E-Mail-Adresse">
             </div>
             <div class="mb-3">
-                <label for="training_type" class="form-label">Art der Fortbildung</label>
+                <label for="training_type" class="form-label">Art der Fortbildung <span class="req">*</span></label>
                 <input type="text" class="form-control" id="training_type" name="training_type" placeholder="Art der gewünschten Fortbildung">
             </div>
             <div class="mb-3">
-                <label for="training_reason" class="form-label">Grund für die Fortbildung</label>
+                <label for="training_reason" class="form-label">Grund für die Fortbildung <span class="req">*</span></label>
                 <textarea class="form-control" id="training_reason" name="training_reason" placeholder="Grund für die Fortbildung"></textarea>
             </div>
             <div class="mb-3">
-                <label for="proposed_date" class="form-label">Vorgeschlagenes Datum & Uhrzeit</label>
+                <label for="proposed_date" class="form-label">Vorgeschlagenes Datum & Uhrzeit <span class="req">*</span></label>
                 <input type="datetime-local" class="form-control" id="proposed_date" name="proposed_date">
             </div>
         </div>
@@ -90,19 +94,19 @@
         <div id="sonstiges_fields" class="border p-4 rounded mb-4" style="display: none;">
             <h2 class="h4 mb-3">Sonstiges</h2>
             <div class="mb-3">
-                <label for="first_name_sonstiges" class="form-label">Vorname</label>
+                <label for="first_name_sonstiges" class="form-label">Vorname <span class="req">*</span></label>
                 <input type="text" class="form-control" id="first_name_sonstiges" name="first_name_sonstiges" placeholder="Ihr Vorname">
             </div>
             <div class="mb-3">
-                <label for="last_name_sonstiges" class="form-label">Nachname</label>
+                <label for="last_name_sonstiges" class="form-label">Nachname <span class="req">*</span></label>
                 <input type="text" class="form-control" id="last_name_sonstiges" name="last_name_sonstiges" placeholder="Ihr Nachname">
             </div>
             <div class="mb-4">
-                <label for="email_sonstiges" class="form-label">E-Mail-Adresse</label>
+                <label for="email_sonstiges" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
                 <input type="email" class="form-control" id="email_sonstiges" name="email_sonstiges" placeholder="Ihre E-Mail-Adresse">
             </div>
             <div class="mb-3">
-                <label for="message_sonstiges" class="form-label">Nachricht</label>
+                <label for="message_sonstiges" class="form-label">Nachricht <span class="req">*</span></label>
                 <textarea class="form-control" id="message_sonstiges" name="message_sonstiges" rows="5" placeholder="Ihre Nachricht"></textarea>
             </div>
         </div>
@@ -111,7 +115,7 @@
         <div class="form-check mb-4">
             <input class="form-check-input" type="checkbox" id="privacy_policy" required>
             <label class="form-check-label" for="privacy_policy">
-                Ich akzeptiere die <a href="{{ url_for('privacy_policy') }}" target="_blank" title="Lesen Sie die Datenschutzerklärung">Datenschutzerklärung</a>.
+                Ich akzeptiere die <a href="{{ url_for('privacy_policy') }}" target="_blank" title="Lesen Sie die Datenschutzerklärung">Datenschutzerklärung</a>. <span class="req">*</span>
             </label>
         </div>
 
