@@ -4,15 +4,26 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1>Admin Panel</h1>
+    <h1 class="mb-4">Admin Panel</h1>
 
-    <h2>Statistics</h2>
-    <p>Total Tickets in Last 6 Months: {{ total_tickets }}</p>
-    <p>Total Solved Tickets in Last 6 Months: {{ solved_tickets }}</p>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2>Statistics</h2>
+            <p>Total Tickets in Last 6 Months: <strong>{{ total_tickets }}</strong></p>
+            <p>Total Solved Tickets in Last 6 Months: <strong>{{ solved_tickets }}</strong></p>
+        </div>
+        <div>
+            <!-- Button to trigger config editor modal -->
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#configModal">
+                Edit Config.ini
+            </button>
+        </div>
+    </div>
 
     <h2>User Statistics</h2>
-    <table class="table table-striped">
-        <thead>
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
             <tr>
                 <th>Name</th>
                 <th>Problem</th>
@@ -20,8 +31,8 @@
                 <th>Sonstiges</th>
                 <th>Gesamt</th>
             </tr>
-        </thead>
-        <tbody>
+            </thead>
+            <tbody>
             {% for first_name, last_name, problem_count, training_count, misc_count in user_stats %}
             <tr>
                 <td>{{ first_name }} {{ last_name }}</td>
@@ -31,7 +42,86 @@
                 <td>{{ problem_count + training_count + misc_count }}</td>
             </tr>
             {% endfor %}
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<!-- Bootstrap 5 Config Modal -->
+<input type="hidden" id="csrf_token" name="csrf_token" value="{{ csrf_token() }}">
+<div class="modal fade" id="configModal" tabindex="-1" aria-labelledby="configModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="configModalLabel">Edit Config.ini</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <textarea id="configContent" class="form-control" rows="15"></textarea>
+            </div>
+            <div class="modal-footer">
+                <div id="configStatus" class="me-auto text-danger"></div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="saveConfigBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>document.addEventListener('DOMContentLoaded', function () {
+    var configModal = document.getElementById('configModal');
+
+    // When the modal is opened, load the config.ini content via AJAX
+    configModal.addEventListener('show.bs.modal', function (event) {
+        // Clear any previous status messages
+        document.getElementById('configStatus').innerText = '';
+        fetch('/admin/get_config')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('configContent').value = data.content;
+                } else {
+                    document.getElementById('configStatus').innerText = 'Error loading config: ' + data.error;
+                }
+            })
+            .catch(error => {
+                document.getElementById('configStatus').innerText = 'Error loading config: ' + error;
+            });
+    });
+
+    // When the save button is clicked, send the updated content via AJAX POST
+    document.getElementById('saveConfigBtn').addEventListener('click', function () {
+        var newContent = document.getElementById('configContent').value;
+        var csrfToken = document.getElementById('csrf_token').value;
+        fetch('/admin/update_config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({content: newContent})
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.text().then(text => { throw new Error(text) });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                document.getElementById('configStatus').innerText = data.message;
+                // Optionally, close the modal after a short delay
+                setTimeout(() => {
+                    var modalInstance = bootstrap.Modal.getInstance(configModal);
+                    modalInstance.hide();
+                }, 1000);
+            } else {
+            }
+        })
+        .catch(error => {
+            document.getElementById('configStatus').innerText = 'Error saving config: ' + error;
+        });
+    });
+});
+</script>
 {% endblock %}

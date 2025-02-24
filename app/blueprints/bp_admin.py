@@ -1,11 +1,17 @@
+import os
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify
-from flask_login import login_required
+
+import re
+import bleach
+from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
+from flask_login import login_required, current_user
 from app import db, app, ProblemTicket, TrainingTicket, MiscTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, User
 from app.decorators import admin_required
 from app.models import RoleEnum, RankEnum, Message, TicketHistory, Privilege, UserPrivilege
 from app.routes import get_date_time
+from email_tools import inform_admin
+import traceback
 
 bp_admin = Blueprint('admin', __name__)
 
@@ -67,6 +73,63 @@ def admin_panel():
                            total_tickets=total_tickets,
                            solved_tickets=solved_tickets,
                            user_stats=user_stats)
+
+
+@app.route('/admin/get_config')
+@login_required
+@admin_required
+def get_config():
+    # Calculate the project root (one directory above current_app.root_path)
+    project_root = os.path.abspath(os.path.join(current_app.root_path, os.pardir))
+    config_path = os.path.join(project_root, 'config.ini')
+
+    # Send Email to Admin when Config is updated
+    app.logger.warning(f'Config accessed by {current_user.username}')
+    inform_admin(
+        headline='Config Accessed',
+        message=f'Config accessed by {current_user.username} at {get_date_time()}. If you did not make this change please contact AKS IMMEDIATELY due to a potential security breach (config.ini accessed).',
+    )
+
+    try:
+        with open(config_path, 'r') as f:
+            content = f.read()
+        return jsonify({'success': True, 'content': content})
+    except Exception as e:
+        app.logger.error(f"Error reading config file: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': 'An internal error has occurred.'}), 500
+
+
+@app.route('/admin/update_config', methods=['POST'])
+@login_required
+@admin_required
+def update_config():
+    project_root = os.path.abspath(os.path.join(current_app.root_path, os.pardir))
+    config_path = os.path.join(project_root, 'config.ini')
+    data = request.get_json()
+    if not data or 'content' not in data:
+        return jsonify({'success': False, 'error': 'Invalid request'}), 400
+
+    # Sanitize the content
+    sanitized_content = bleach.clean(data['content'], tags=[], strip=True)
+
+    # Remove any Python code
+    python_code_pattern = re.compile(r'(?s)<\?python.*?\?>')
+    sanitized_content = re.sub(python_code_pattern, '', sanitized_content)
+
+    # Send Email to Admin when Config is updated
+    app.logger.warning(f'Config updated by {current_user.username}')
+    inform_admin(
+        headline='Config Updated',
+        message=f'Config updated by {current_user.username} at {get_date_time()}. If you did not make this change please contact AKS IMMEDIATELY',
+    )
+
+    try:
+        with open(config_path, 'w') as f:
+            f.write(sanitized_content)
+        return jsonify({'success': True, 'message': 'Config updated successfully.'})
+    except Exception as e:
+        app.logger.error(f"Error updating config file: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': 'An internal error has occurred.'}), 500
 
 
 @app.route('/members/administration', methods=['GET', 'POST'])

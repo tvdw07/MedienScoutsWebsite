@@ -227,6 +227,85 @@ notify_admin_template = EmailTemplate(
     """
 )
 
+inform_admin_template = EmailTemplate(
+    subject="Admin Notification",
+    template_content="""\
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        body {{
+          font-family: 'Roboto', Arial, sans-serif;
+          background-color: #f2f4f8;
+          padding: 20px;
+          color: #333;
+        }}
+        .email-container {{
+          max-width: 600px;
+          margin: 0 auto;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }}
+        .email-header {{
+          background-color: #4CAF50;
+          padding: 25px;
+          text-align: center;
+          color: #fff;
+        }}
+        .email-header h1 {{
+          margin: 0;
+          font-size: 24px;
+          font-weight: 500;
+        }}
+        .email-content {{
+          padding: 30px;
+          font-size: 16px;
+        }}
+        .btn {{
+          display: inline-block;
+          padding: 12px 25px;
+          background-color: #007BFF;
+          color: #fff;
+          text-decoration: none;
+          border-radius: 6px;
+          margin-top: 20px;
+          font-weight: 500;
+        }}
+        .btn:hover {{
+          background-color: #0056b3;
+        }}
+        .email-footer {{
+          background: #f9f9f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 12px;
+          color: #777;
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="email-container">
+        <div class="email-header">
+          <h1>{headline}</h1>
+        </div>
+        <div class="email-content">
+          <p>Hello Admin,</p>
+          <p>{message}</p>
+          <p style="text-align: center; {button_style}"><a href="{link}" class="btn">{button_text}</a></p>
+        </div>
+        <div class="email-footer">
+          <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+)
+
 # Client Notification about Ticket Change
 notify_client_about_ticket_change_template = EmailTemplate(
     subject="Response to Your Ticket",
@@ -483,6 +562,21 @@ def notify_admin(ticket, ticket_type, message):
     link = url_for('ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
     send_email(notify_admin_template, admin.email, message=message, link=link)
     app.logger.info(f"Sent admin notification about new ticket {ticket.id}")
+
+
+def inform_admin(headline, message):
+    from app.models import User
+    admin = User.query.filter_by(role='ADMIN', active=True).first()
+    send_email(
+        inform_admin_template,
+        recipient=admin.email,
+        headline=headline,
+        message=message,
+        link="",  # Empty link
+        button_text="",  # No button text
+        button_style="display: none;"  # Hide the button
+    )
+    app.logger.info(f"Sent admin notification")
 
 
 def notify_client(ticket, message):
