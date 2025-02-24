@@ -116,7 +116,7 @@ CREATE TABLE user (
   first_name varchar(50) NOT NULL,
   last_name varchar(50) NOT NULL,
   role enum('ADMIN','TEACHER','MEMBER') NOT NULL DEFAULT 'MEMBER',
-  rank enum('KEIN','BRONZE','SILBER','GOLD','PLATIN') DEFAULT 'KEIN',
+  `rank` enum('KEIN','BRONZE','SILBER','GOLD','PLATIN') DEFAULT 'KEIN',
   active tinyint(1) DEFAULT 1,
   active_from datetime DEFAULT NULL,
   active_until datetime DEFAULT NULL,
