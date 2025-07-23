@@ -6,8 +6,6 @@ from email.mime.text import MIMEText
 
 from flask import url_for
 
-from app import app, User
-
 
 class EmailTemplate:
     def __init__(self, subject, template_content):
@@ -19,7 +17,27 @@ class EmailTemplate:
         return self.template_content.format(**kwargs)
 
 
+def test_email_functionality(recipient_email):
+    """
+    Test function to verify email sending functionality.
+    This function should be called in a test environment to ensure that the email
+    sending process works correctly.
+    """
+    try:
+        # Example usage of the send_email function
+        send_email(
+            template=ticket_link_template,
+            recipient=recipient_email,
+            link="https://example.com"  # Placeholder link for testing
+        )
+        print("Email functionality test passed.")
+    except Exception as e:
+        print(f"Email functionality test failed: {e}")
+
+
 # Function to send an email with a dynamic template
+import logging
+
 def send_email(template, recipient, **variables):
     # Read configuration file
     config = configparser.ConfigParser()
@@ -27,7 +45,7 @@ def send_email(template, recipient, **variables):
 
     # Read SMTP configuration data
     smtp_server = config['SMTP']['server']
-    smtp_port = config['SMTP'].getint('port')
+    smtp_port = int(config['SMTP']['port'])
     smtp_user = config['SMTP']['user']
     smtp_password = config['SMTP']['password']
 
@@ -50,13 +68,27 @@ def send_email(template, recipient, **variables):
     # Send email
     try:
         server = smtplib.SMTP(smtp_server, smtp_port)
+        server.set_debuglevel(1)  # Enable SMTP debug output
         server.starttls()
         server.login(smtp_user, smtp_password)
         server.sendmail(from_email, recipient, message.as_string())
         server.quit()
         print("Email sent successfully.")
+    except smtplib.SMTPAuthenticationError as e:
+        logging.error(f"SMTP Authentication Error: {e}")
+        print("Authentication failed. Please check your SMTP credentials.")
+    except smtplib.SMTPConnectError as e:
+        logging.error(f"SMTP Connection Error: {e}")
+        print("Failed to connect to the SMTP server. Please check the server address and port.")
+    except smtplib.SMTPRecipientsRefused as e:
+        logging.error(f"SMTP Recipients Refused: {e}")
+        print("The recipient address was refused. Please check the recipient email.")
+    except smtplib.SMTPException as e:
+        logging.error(f"SMTP Error: {e}")
+        print("An SMTP error occurred. Please check the SMTP configuration.")
     except Exception as e:
-        print(f"Error sending email: {e}")
+        logging.error(f"General Error: {e}")
+        print("An unexpected error occurred while sending the email.")
 
 
 # Ticket Link Email Template
@@ -550,6 +582,7 @@ reset_password_template = EmailTemplate(
 
 
 def send_ticket_link(ticket):
+    from app import app
     token = ticket.generate_token()
     link = url_for('view_ticket', token=token, _external=True)
     send_email(ticket_link_template, ticket.email, link=link)
@@ -557,6 +590,7 @@ def send_ticket_link(ticket):
 
 
 def notify_admin(ticket, ticket_type, message):
+    from app import app
     from app.models import User
     admin = User.query.filter_by(role='ADMIN', active=True).first()
     link = url_for('ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
@@ -565,6 +599,7 @@ def notify_admin(ticket, ticket_type, message):
 
 
 def inform_admin(headline, message):
+    from app import app
     from app.models import User
     admin = User.query.filter_by(role='ADMIN', active=True).first()
     send_email(
@@ -580,6 +615,7 @@ def inform_admin(headline, message):
 
 
 def notify_client(ticket, message):
+    from app import app
     token = ticket.generate_token()
     link = url_for('view_ticket', token=token, _external=True)
     send_email(notify_client_about_ticket_change_template, ticket.email, response_message=message, link=link)
@@ -587,6 +623,7 @@ def notify_client(ticket, message):
 
 
 def notify_user_about_ticket_change(ticket, message, ticket_type):
+    from app import app
     from app.models import ProblemTicketUser, TrainingTicketUser, MiscTicketUser, User
 
     # Determine the correct user assignment model based on ticket type
@@ -610,6 +647,7 @@ def notify_user_about_ticket_change(ticket, message, ticket_type):
 
 
 def send_reset_email(user):
+    from app import app
     token = user.generate_reset_password_token()
     reset_url = url_for('reset_password', token=token, user_id=user.id, _external=True)  # Use 'user_id' instead of 'id'
     send_email(reset_password_template, user.email, reset_url=reset_url)
