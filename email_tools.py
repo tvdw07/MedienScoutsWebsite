@@ -28,7 +28,7 @@ def test_email_functionality(recipient_email):
         send_email(
             template=ticket_link_template,
             recipient=recipient_email,
-            link="https://google.com"  # Example link
+            link="https://example.com"  # Placeholder link for testing
         )
         print("Email functionality test passed.")
     except Exception as e:
