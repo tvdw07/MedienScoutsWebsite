@@ -73,7 +73,7 @@ def send_email(template, recipient, **variables):
         server.login(smtp_user, smtp_password)
         server.sendmail(from_email, recipient, message.as_string())
         server.quit()
-        print("Email sent successfully.")
+        logging.info("Email sent successfully.")
     except smtplib.SMTPAuthenticationError as e:
         logging.error(f"SMTP Authentication Error: {e}")
         print("Authentication failed. Please check your SMTP credentials.")
