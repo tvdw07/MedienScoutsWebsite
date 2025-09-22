@@ -17,21 +17,22 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('home') }}">MedienScouts</a>
+            <a class="navbar-brand" href="{{ url_for('main.home') }}">MedienScouts</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                     aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('home') }}">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('members') }}">Members</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('send_ticket') }}">Send Ticket</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.home') }}">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.members') }}">Members</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.send_ticket') }}">Send Ticket</a>
+                    </li>
                     {% if current_user.is_authenticated %}
                     <li class="nav-item"><a class="nav-link"
-                                            href="{{ url_for('ticket_verwaltung') }}">Ticketverwaltung</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('archiv') }}">Archiv</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('forum') }}">Forum</a></li>
+                                            href="{{ url_for('main.ticket_verwaltung') }}">Ticketverwaltung</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.archiv') }}">Archiv</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.forum') }}">Forum</a></li>
                     {% if current_user.is_admin %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button"
@@ -39,8 +40,8 @@
                             Admin
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                            <li><a class="dropdown-item" href="{{ url_for('admin_panel') }}">Admin Panel</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('members_administration') }}">Member
+                            <li><a class="dropdown-item" href="{{ url_for('admin.admin_panel') }}">Admin Panel</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.members_administration') }}">Member
                                 Management</a></li>
                         </ul>
                     </li>
@@ -49,11 +50,11 @@
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('profile') }}">Profile</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.profile') }}">Profile</a></li>
                     <li class="nav-item"><a class="nav-link btn btn-outline-light"
-                                            href="{{ url_for('logout') }}">Logout</a></li>
+                                            href="{{ url_for('main.logout') }}">Logout</a></li>
                     {% else %}
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Login</a></li>
                     {% endif %}
                 </ul>
             </div>
@@ -88,8 +89,8 @@
     <footer class="footer text-center text-lg-start mt-5">
         <div class="text-center p-3">
             &copy; 2025 MedienScouts. All rights reserved.
-            <a href="{{ url_for('impressum') }}" class="ms-3">Impressum</a>
-            <a href="{{ url_for('privacy_policy') }}" class="ms-3">Privacy Policy</a>
+            <a href="{{ url_for('main.impressum') }}" class="ms-3">Impressum</a>
+            <a href="{{ url_for('main.privacy_policy') }}" class="ms-3">Privacy Policy</a>
         </div>
     </footer>
 </div>

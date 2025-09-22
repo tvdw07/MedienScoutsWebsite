@@ -5,10 +5,9 @@ import re
 import bleach
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
 from flask_login import login_required, current_user
-from app import db, app, ProblemTicket, TrainingTicket, MiscTicket, ProblemTicketUser, TrainingTicketUser, \
-    MiscTicketUser, User
+from app.models import db, ProblemTicket, TrainingTicket, MiscTicket, ProblemTicketUser, TrainingTicketUser, \
+    MiscTicketUser, User, RoleEnum, RankEnum, Message, TicketHistory, Privilege, UserPrivilege
 from app.decorators import admin_required
-from app.models import RoleEnum, RankEnum, Message, TicketHistory, Privilege, UserPrivilege
 from app.routes import get_date_time
 from email_tools import inform_admin
 import traceback
@@ -16,7 +15,7 @@ import traceback
 bp_admin = Blueprint('admin', __name__)
 
 
-@app.route('/admin/panel')
+@bp_admin.route('/admin/panel')
 @login_required
 @admin_required
 def admin_panel():
@@ -75,7 +74,7 @@ def admin_panel():
                            user_stats=user_stats)
 
 
-@app.route('/admin/get_config')
+@bp_admin.route('/admin/get_config')
 @login_required
 @admin_required
 def get_config():
@@ -84,7 +83,7 @@ def get_config():
     config_path = os.path.join(project_root, 'config.ini')
 
     # Send Email to Admin when Config is updated
-    app.logger.warning(f'Config accessed by {current_user.username}')
+    current_app.logger.warning(f'Config accessed by {current_user.username}')
     inform_admin(
         headline='Config Accessed',
         message=f'Config accessed by {current_user.username} at {get_date_time()}. If you did not make this change please contact AKS IMMEDIATELY due to a potential security breach (config.ini accessed).',
@@ -95,11 +94,11 @@ def get_config():
             content = f.read()
         return jsonify({'success': True, 'content': content})
     except Exception as e:
-        app.logger.error(f"Error reading config file: {traceback.format_exc()}")
+        current_app.logger.error(f"Error reading config file: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': 'An internal error has occurred.'}), 500
 
 
-@app.route('/admin/update_config', methods=['POST'])
+@bp_admin.route('/admin/update_config', methods=['POST'])
 @login_required
 @admin_required
 def update_config():
@@ -117,7 +116,7 @@ def update_config():
     sanitized_content = re.sub(python_code_pattern, '', sanitized_content)
 
     # Send Email to Admin when Config is updated
-    app.logger.warning(f'Config updated by {current_user.username}')
+    current_app.logger.warning(f'Config updated by {current_user.username}')
     inform_admin(
         headline='Config Updated',
         message=f'Config updated by {current_user.username} at {get_date_time()}. If you did not make this change please contact AKS IMMEDIATELY',
@@ -128,11 +127,11 @@ def update_config():
             f.write(sanitized_content)
         return jsonify({'success': True, 'message': 'Config updated successfully.'})
     except Exception as e:
-        app.logger.error(f"Error updating config file: {traceback.format_exc()}")
+        current_app.logger.error(f"Error updating config file: {traceback.format_exc()}")
         return jsonify({'success': False, 'error': 'An internal error has occurred.'}), 500
 
 
-@app.route('/members/administration', methods=['GET', 'POST'])
+@bp_admin.route('/members/administration', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def members_administration():
@@ -151,7 +150,7 @@ def members_administration():
             new_user.password_hash = ''  # Set no password for new user
             db.session.add(new_user)
             db.session.commit()
-            app.logger.info(f'New user created: {new_user.username}')
+            current_app.logger.info(f'New user created: {new_user.username}')
             flash('New user created successfully.', 'success')
         else:
             user_id = request.form.get('user_id')
@@ -159,7 +158,7 @@ def members_administration():
             if user:
                 if 'reset_password' in request.form:
                     user.password_hash = ''  # Reset password
-                    app.logger.info(f'Password reset for user: {user.username}')
+                    current_app.logger.info(f'Password reset for user: {user.username}')
                     flash('Password has been reset successfully.', 'success')
                 else:
                     user.username = request.form.get('username')
@@ -171,20 +170,20 @@ def members_administration():
                     if 'set_inactive' in request.form:
                         user.active = False
                         user.active_until = datetime.now()
-                        app.logger.info(f'User deactivated: {user.username}')
+                        current_app.logger.info(f'User deactivated: {user.username}')
                     elif 'set_active' in request.form:
                         user.active = True
                         user.active_until = None
-                        app.logger.info(f'User activated: {user.username}')
+                        current_app.logger.info(f'User activated: {user.username}')
                     new_password = request.form.get('new_password')
                     if new_password:
                         user.set_password(new_password)
-                        app.logger.info(f'Password changed for user: {user.username}')
+                        current_app.logger.info(f'Password changed for user: {user.username}')
                 db.session.commit()
-                app.logger.info(f'User updated: {user.username}')
+                current_app.logger.info(f'User updated: {user.username}')
                 flash('User updated successfully.', 'success')
             else:
-                app.logger.error(f'User not found: {user_id}')
+                current_app.logger.error(f'User not found: {user_id}')
                 flash('User not found.', 'danger')
         return redirect(url_for('members_administration'))
 
@@ -194,7 +193,7 @@ def members_administration():
                            inactive_users=inactive_users, roles=RoleEnum, ranks=RankEnum)
 
 
-@app.route('/members/user/<int:user_id>', methods=['GET', 'POST'])
+@bp_admin.route('/members/user/<int:user_id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def user_detail(user_id):
@@ -272,7 +271,7 @@ def user_detail(user_id):
         return jsonify({'message': 'User updated successfully'})
 
 
-@app.route('/members/user', methods=['POST'])
+@bp_admin.route('/members/user', methods=['POST'])
 @login_required
 @admin_required
 def create_user():
@@ -302,7 +301,7 @@ def create_user():
     return jsonify({'message': 'User created successfully', 'user_id': new_user.id})
 
 
-@app.route('/delete_message/<int:message_id>', methods=['POST'])
+@bp_admin.route('/delete_message/<int:message_id>', methods=['POST'])
 @login_required
 @admin_required
 def delete_message(message_id):
@@ -311,14 +310,14 @@ def delete_message(message_id):
         message.content = f'This Post was deleted by the Admin on {get_date_time()}'
         message.deleted = True
         db.session.commit()
-        app.logger.info(f'Message deleted: {message_id}')
+        current_app.logger.info(f'Message deleted: {message_id}')
         return jsonify({'success': True})
-    app.logger.error(f'Message not found: {message_id}')
+    current_app.logger.error(f'Message not found: {message_id}')
     return jsonify({'error': 'Message not found'}), 404
 
 
 # app/routes.py
-@app.route('/ticket/<int:ticket_id>/delete', methods=['POST'])
+@bp_admin.route('/ticket/<int:ticket_id>/delete', methods=['POST'])
 @login_required
 @admin_required
 def delete_ticket(ticket_id):
@@ -333,7 +332,7 @@ def delete_ticket(ticket_id):
         ticket = MiscTicket.query.get(ticket_id)
         MiscTicketUser.query.filter_by(misc_ticket_id=ticket_id).delete()
     else:
-        app.logger.error(f'Invalid ticket type: {ticket_type}')
+        current_app.logger.error(f'Invalid ticket type: {ticket_type}')
         flash('Invalid ticket type.', 'danger')
         return redirect(url_for('ticket_verwaltung'))
 
@@ -343,7 +342,7 @@ def delete_ticket(ticket_id):
         db.session.commit()
         flash('Ticket deleted successfully.', 'success')
     else:
-        app.logger.error(f'Ticket not found: {ticket_id}, {ticket_type}')
+        current_app.logger.error(f'Ticket not found: {ticket_id}, {ticket_type}')
         flash('Ticket not found.', 'danger')
 
     return redirect(url_for('ticket_verwaltung'))

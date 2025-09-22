@@ -5,7 +5,8 @@
 {% block content %}
 <div class="content-section">
     <h1 class="text-center mb-4">Problem melden oder Fortbildung buchen</h1>
-    <form method="POST" action="{{ url_for('send_ticket') }}" enctype="multipart/form-data" onsubmit="return validateForm()">
+    <form method="POST" action="{{ url_for('main.send_ticket') }}" enctype="multipart/form-data"
+          onsubmit="return validateForm()">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-4">
             <label for="ticket_type" class="form-label">Ticket Art</label>
@@ -115,7 +116,9 @@
         <div class="form-check mb-4">
             <input class="form-check-input" type="checkbox" id="privacy_policy" required>
             <label class="form-check-label" for="privacy_policy">
-                Ich akzeptiere die <a href="{{ url_for('privacy_policy') }}" target="_blank" title="Lesen Sie die Datenschutzerklärung">Datenschutzerklärung</a>. <span class="req">*</span>
+                Ich akzeptiere die <a href="{{ url_for('main.privacy_policy') }}" target="_blank"
+                                      title="Lesen Sie die Datenschutzerklärung">Datenschutzerklärung</a>. <span
+                    class="req">*</span>
             </label>
         </div>
 

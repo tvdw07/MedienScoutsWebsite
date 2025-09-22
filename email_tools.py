@@ -4,7 +4,7 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from flask import url_for
+from flask import url_for, current_app
 
 
 class EmailTemplate:
@@ -582,24 +582,21 @@ reset_password_template = EmailTemplate(
 
 
 def send_ticket_link(ticket):
-    from app import app
     token = ticket.generate_token()
     link = url_for('view_ticket', token=token, _external=True)
     send_email(ticket_link_template, ticket.email, link=link)
-    app.logger.info(f"Sent ticket link to {ticket.email}")
+    current_app.logger.info(f"Sent ticket link to {ticket.email}")
 
 
 def notify_admin(ticket, ticket_type, message):
-    from app import app
     from app.models import User
     admin = User.query.filter_by(role='ADMIN', active=True).first()
     link = url_for('ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
     send_email(notify_admin_template, admin.email, message=message, link=link)
-    app.logger.info(f"Sent admin notification about new ticket {ticket.id}")
+    current_app.logger.info(f"Sent admin notification about new ticket {ticket.id}")
 
 
 def inform_admin(headline, message):
-    from app import app
     from app.models import User
     admin = User.query.filter_by(role='ADMIN', active=True).first()
     send_email(
@@ -611,19 +608,17 @@ def inform_admin(headline, message):
         button_text="",  # No button text
         button_style="display: none;"  # Hide the button
     )
-    app.logger.info(f"Sent admin notification")
+    current_app.logger.info(f"Sent admin notification")
 
 
 def notify_client(ticket, message):
-    from app import app
     token = ticket.generate_token()
     link = url_for('view_ticket', token=token, _external=True)
     send_email(notify_client_about_ticket_change_template, ticket.email, response_message=message, link=link)
-    app.logger.info(f"Sent client notification about ticket {ticket.id}")
+    current_app.logger.info(f"Sent client notification about ticket {ticket.id}")
 
 
 def notify_user_about_ticket_change(ticket, message, ticket_type):
-    from app import app
     from app.models import ProblemTicketUser, TrainingTicketUser, MiscTicketUser, User
 
     # Determine the correct user assignment model based on ticket type
@@ -641,14 +636,13 @@ def notify_user_about_ticket_change(ticket, message, ticket_type):
         if user:
             link = url_for('ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
             send_email(notify_user_about_ticket_change_template, user.email, response_message=message, link=link)
-            app.logger.info(f"Sent user notification about ticket {ticket.id}")
+            current_app.logger.info(f"Sent user notification about ticket {ticket.id}")
         else:
-            app.logger.error(f"User not found for ticket {ticket.id}")
+            current_app.logger.error(f"User not found for ticket {ticket.id}")
 
 
 def send_reset_email(user):
-    from app import app
     token = user.generate_reset_password_token()
-    reset_url = url_for('reset_password', token=token, user_id=user.id, _external=True)  # Use 'user_id' instead of 'id'
+    reset_url = url_for('auth.reset_password', token=token, user_id=user.id, _external=True)
     send_email(reset_password_template, user.email, reset_url=reset_url)
-    app.logger.info(f"Sent password reset email to {user.email}")
+    current_app.logger.info(f"Sent password reset email to {user.email}")

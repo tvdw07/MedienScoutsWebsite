@@ -1,3 +1,7 @@
+from flask import Blueprint
+
+bp_main = Blueprint('main', __name__)
+
 import os
 from datetime import datetime
 from urllib.parse import urlparse, urljoin, unquote
@@ -5,7 +9,6 @@ from PIL import Image
 from flask import jsonify, session, current_app, send_from_directory
 from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from app import app
 from app.decorators import ticket_owner_required
 from app.forms import MessageForm, EditProfileForm, ChangePasswordForm
 from app.models import Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
@@ -20,20 +23,14 @@ def is_safe_url(target):
     return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 
-@app.before_request
-def before_request():
-    """Setzt die Session auf permanent, um lange Anmeldungen zu ermöglichen"""
-    session.permanent = True
-
-
-@app.route('/')
+@bp_main.route('/')
 def home():
     """Startseite mit der Anzahl der aktiven Mitglieder"""
     member_count = User.query.filter_by(active=True).count()
     return render_template('home.html', member_count=member_count)
 
 
-@app.route('/members')
+@bp_main.route('/members')
 def members():
     """Listet aktive und inaktive Mitglieder auf"""
     active_members = User.query.filter_by(active=True).all()
@@ -41,7 +38,7 @@ def members():
     return render_template('members.html', active_members=active_members, inactive_members=inactive_members)
 
 
-@app.route('/ticketverwaltung')
+@bp_main.route('/ticketverwaltung')
 @login_required
 def ticket_verwaltung():
     """Übersicht über offene Tickets und eigene Tickets des Nutzers"""
@@ -85,7 +82,7 @@ def ticket_verwaltung():
                            total_open_tickets=total_open_tickets)
 
 
-@app.route('/ticket/<string:ticket_type>/<int:ticket_id>/details')
+@bp_main.route('/ticket/<string:ticket_type>/<int:ticket_id>/details')
 @login_required
 def ticket_details(ticket_type, ticket_id):
     """Zeigt die Details eines bestimmten Tickets an"""
@@ -109,7 +106,7 @@ def ticket_details(ticket_type, ticket_id):
     return render_template('ticket_details.html', ticket=ticket, ticket_type=ticket_type, ticket_history=ticket_history)
 
 
-@app.route('/ticket/<int:ticket_id>/claim', methods=['POST'])
+@bp_main.route('/ticket/<int:ticket_id>/claim', methods=['POST'])
 @login_required
 def claim_ticket(ticket_id):
     """Ein Ticket wird von einem Nutzer übernommen"""
@@ -126,7 +123,7 @@ def claim_ticket(ticket_id):
             ticket = MiscTicket.query.get(ticket_id)
             ticket_user = MiscTicketUser(misc_ticket_id=ticket_id, user_id=user_id)
         else:
-            app.logger.error(f'Ungültiger Ticket-Typ: {ticket_type}')
+            current_app.logger.error(f'Ungültiger Ticket-Typ: {ticket_type}')
             flash('Ungültiger Ticket-Typ.', 'danger')
             return redirect(url_for('ticket_verwaltung'))
 
@@ -137,12 +134,12 @@ def claim_ticket(ticket_id):
     except Exception as e:
         db.session.rollback()
         flash('Fehler beim Übernehmen des Tickets.', 'danger')
-        app.logger.error(f'Fehler beim Übernehmen des Tickets: {e}')
+        current_app.logger.error(f'Fehler beim Übernehmen des Tickets: {e}')
 
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
-@app.route('/ticket/<int:ticket_id>/request_help', methods=['POST'])
+@bp_main.route('/ticket/<int:ticket_id>/request_help', methods=['POST'])
 @login_required
 @ticket_owner_required
 def request_help(ticket_id):
@@ -163,7 +160,7 @@ def request_help(ticket_id):
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
-@app.route('/ticket/<int:ticket_id>/submit_response', methods=['POST'])
+@bp_main.route('/ticket/<int:ticket_id>/submit_response', methods=['POST'])
 @login_required
 @ticket_owner_required
 def submit_response(ticket_id):
@@ -199,7 +196,7 @@ def submit_response(ticket_id):
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
-@app.route('/ticket/<int:ticket_id>/mark_solved', methods=['POST'])
+@bp_main.route('/ticket/<int:ticket_id>/mark_solved', methods=['POST'])
 @login_required
 @ticket_owner_required
 def mark_ticket_solved(ticket_id):
@@ -221,13 +218,13 @@ def mark_ticket_solved(ticket_id):
         db.session.commit()
         flash('Ticket marked as solved.', 'success')
     else:
-        app.logger.error(f'Ticket not found: {ticket_id}, {ticket_type}')
+        current_app.logger.error(f'Ticket not found: {ticket_id}, {ticket_type}')
         flash('Ticket not found.', 'danger')
 
     return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
-@app.route('/send_ticket', methods=['GET', 'POST'])
+@bp_main.route('/send_ticket', methods=['GET', 'POST'])
 def send_ticket():
     """Handles the submission of different types of tickets"""
     if request.method == 'POST':
@@ -249,7 +246,8 @@ def send_ticket():
             steps = request.form.getlist('steps')
             steps_taken = ", ".join(steps)
             photo = request.files.get('photo')
-            app.logger.info("Ticket submitted: %s, %s, %s, %s, %s, %s, %s", first_name, last_name, email, class_stufe,
+            current_app.logger.info("Ticket submitted: %s, %s, %s, %s, %s, %s, %s", first_name, last_name, email,
+                                    class_stufe,
                             serial_number, problem_description, steps_taken)
 
             photo_path = save_photo(photo, first_name, last_name)
@@ -279,7 +277,7 @@ def send_ticket():
             training_type = request.form.get('training_type')
             training_reason = request.form.get('training_reason')
             proposed_date = request.form.get('proposed_date')
-            app.logger.info("Ticket submitted: %s, %s, %s, %s, %s", class_teacher, email, training_type,
+            current_app.logger.info("Ticket submitted: %s, %s, %s, %s, %s", class_teacher, email, training_type,
                             training_reason, proposed_date)
             ticket = TrainingTicket(
                 class_teacher=class_teacher,
@@ -302,7 +300,7 @@ def send_ticket():
             last_name = request.form.get('last_name_sonstiges')
             message = request.form.get('message_sonstiges')
             email = request.form.get('email_sonstiges')
-            app.logger.info("Ticket submitted: %s, %s, %s, %s", first_name, last_name, email, message)
+            current_app.logger.info("Ticket submitted: %s, %s, %s, %s", first_name, last_name, email, message)
 
             ticket = MiscTicket(
                 first_name=first_name,
@@ -397,14 +395,14 @@ def save_photo(photo, first_name, last_name):
 
 
 @login_required
-@app.route('/logout')
+@bp_main.route('/logout')
 def logout():
     logout_user()
     flash('You have been logged out.', 'success')
-    return redirect(url_for('home'))
+    return redirect(url_for('main.home'))
 
 
-@app.route('/forum', methods=['GET', 'POST'])
+@bp_main.route('/forum', methods=['GET', 'POST'])
 @login_required
 def forum():
     form = MessageForm()
@@ -421,7 +419,7 @@ def forum():
     return render_template('forum.html', form=form, messages=messages.items, pagination=messages)
 
 
-@app.route('/load_more_messages/<int:page>', methods=['GET'])
+@bp_main.route('/load_more_messages/<int:page>', methods=['GET'])
 @login_required
 def load_more_messages(page):
     messages = Message.query.order_by(Message.timestamp.desc()).paginate(page=page, per_page=5)
@@ -439,12 +437,12 @@ def load_more_messages(page):
     })
 
 
-@app.route('/privacy_policy')
+@bp_main.route('/privacy_policy')
 def privacy_policy():
     return render_template('privacy_policy.html')
 
 
-@app.route('/archiv')
+@bp_main.route('/archiv')
 @login_required
 def archiv():
     """
@@ -467,12 +465,12 @@ from flask_login import login_required
 from app.models import User, db, RoleEnum, RankEnum
 
 
-@app.route('/impressum')
+@bp_main.route('/impressum')
 def impressum():
     return render_template('impressum.html')
 
 
-@app.route('/ticket/<token>', methods=['GET', 'POST'])
+@bp_main.route('/ticket/<token>', methods=['GET', 'POST'])
 def view_ticket(token):
     """
     Displays the details of a ticket based on a token and allows users to submit responses.
@@ -487,7 +485,7 @@ def view_ticket(token):
 
     # If the ticket is not found or the token is invalid, log an error and redirect to the home page
     if not ticket:
-        app.logger.error(f'Invalid or expired token: {token}')
+        current_app.logger.error(f'Invalid or expired token: {token}')
         flash('Invalid or expired token', 'danger')
         return redirect(url_for('home'))
 
@@ -539,7 +537,7 @@ def get_date_time():
     return now.strftime("%d:%m:%Y %H:%M:%S")
 
 
-@app.route('/profile', methods=['GET', 'POST'])
+@bp_main.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
     form = EditProfileForm(obj=current_user)
@@ -662,7 +660,7 @@ def profile():
     return render_template('profile.html', form=form, password_form=password_form)
 
 
-@app.route('/profile_picture/<first_name>_<last_name>')
+@bp_main.route('/profile_picture/<first_name>_<last_name>')
 @login_required
 def profile_picture(first_name, last_name):
     # Decode the URL parameters: Replace underscores with spaces
@@ -722,7 +720,7 @@ def profile_picture(first_name, last_name):
         return send_from_directory(current_app.static_folder, 'images/default_profile.png')
 
 
-@app.route('/send_password_reset_email', methods=['POST'])
+@bp_main.route('/send_password_reset_email', methods=['POST'])
 @login_required
 def send_password_reset_email():
     """
