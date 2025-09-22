@@ -2,11 +2,9 @@
 import os.path
 from datetime import timedelta
 
-MYSQL_HOST = 'DB_HOST'
-MYSQL_USER = 'DB_USER'
-MYSQL_PASSWORD = 'DB_PASSWORD'
-MYSQL_DB = 'DB_NAME'
-SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DB}'
+# Datenbank-Konfiguration für SQLite
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+SQLALCHEMY_DATABASE_URI = f'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 # config.py
