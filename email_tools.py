@@ -583,7 +583,7 @@ reset_password_template = EmailTemplate(
 
 def send_ticket_link(ticket):
     token = ticket.generate_token()
-    link = url_for('view_ticket', token=token, _external=True)
+    link = url_for('main.view_ticket', token=token, _external=True)
     send_email(ticket_link_template, ticket.email, link=link)
     current_app.logger.info(f"Sent ticket link to {ticket.email}")
 
@@ -591,7 +591,7 @@ def send_ticket_link(ticket):
 def notify_admin(ticket, ticket_type, message):
     from app.models import User
     admin = User.query.filter_by(role='ADMIN', active=True).first()
-    link = url_for('ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
+    link = url_for('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
     send_email(notify_admin_template, admin.email, message=message, link=link)
     current_app.logger.info(f"Sent admin notification about new ticket {ticket.id}")
 
@@ -613,7 +613,7 @@ def inform_admin(headline, message):
 
 def notify_client(ticket, message):
     token = ticket.generate_token()
-    link = url_for('view_ticket', token=token, _external=True)
+    link = url_for('main.view_ticket', token=token, _external=True)
     send_email(notify_client_about_ticket_change_template, ticket.email, response_message=message, link=link)
     current_app.logger.info(f"Sent client notification about ticket {ticket.id}")
 
@@ -634,7 +634,7 @@ def notify_user_about_ticket_change(ticket, message, ticket_type):
     if responsible_user:
         user = User.query.get(responsible_user.user_id)
         if user:
-            link = url_for('ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
+            link = url_for('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
             send_email(notify_user_about_ticket_change_template, user.email, response_message=message, link=link)
             current_app.logger.info(f"Sent user notification about ticket {ticket.id}")
         else:

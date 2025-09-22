@@ -136,7 +136,7 @@ def claim_ticket(ticket_id):
         flash('Fehler beim Übernehmen des Tickets.', 'danger')
         current_app.logger.error(f'Fehler beim Übernehmen des Tickets: {e}')
 
-    return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+    return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
 @bp_main.route('/ticket/<int:ticket_id>/request_help', methods=['POST'])
@@ -153,11 +153,11 @@ def request_help(ticket_id):
         ticket = MiscTicket.query.get(ticket_id)
     else:
         flash('Invalid ticket type.', 'danger')
-        return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+        return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
     notify_admin(ticket, ticket_type, 'Help is requested for the following ticket:')
     flash(f'Help request has been sent for ticket ID: {ticket_id}', 'info')
-    return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+    return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
 @bp_main.route('/ticket/<int:ticket_id>/submit_response', methods=['POST'])
@@ -169,7 +169,7 @@ def submit_response(ticket_id):
     ticket_type = request.form.get('ticket_type')
     if not ticket_type:
         flash('Ticket type is required.', 'danger')
-        return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+        return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
     # Update the ticket status to 3
     if ticket_type == 'problem':
@@ -181,7 +181,7 @@ def submit_response(ticket_id):
 
     if ticket.status_id == 4 or ticket.status_id == 1:
         flash('Ticket is already solved.', 'danger')
-        return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+        return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
     # Log the ticket message
     author_type = 'MedienScout: ' + current_user.first_name + ' ' + current_user.last_name
@@ -193,7 +193,7 @@ def submit_response(ticket_id):
     notify_client(ticket, response_message)
 
     flash(f'Response has been submitted for ticket ID: {ticket_id}', 'info')
-    return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+    return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
 @bp_main.route('/ticket/<int:ticket_id>/mark_solved', methods=['POST'])
@@ -211,7 +211,7 @@ def mark_ticket_solved(ticket_id):
         ticket = MiscTicket.query.get(ticket_id)
     else:
         flash('Invalid ticket type.', 'danger')
-        return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+        return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
     if ticket:
         ticket.status_id = 4
@@ -221,7 +221,7 @@ def mark_ticket_solved(ticket_id):
         current_app.logger.error(f'Ticket not found: {ticket_id}, {ticket_type}')
         flash('Ticket not found.', 'danger')
 
-    return redirect(url_for('ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+    return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
 
 @bp_main.route('/send_ticket', methods=['GET', 'POST'])
@@ -249,9 +249,10 @@ def send_ticket():
             current_app.logger.info("Ticket submitted: %s, %s, %s, %s, %s, %s, %s", first_name, last_name, email,
                                     class_stufe,
                             serial_number, problem_description, steps_taken)
-
             photo_path = save_photo(photo, first_name, last_name)
-
+            if photo and photo_path is None:
+                # Fehler beim Foto-Upload, Fehler wurde bereits geflasht
+                return redirect(request.url)
             ticket = ProblemTicket(
                 first_name=first_name,
                 last_name=last_name,
@@ -318,7 +319,7 @@ def send_ticket():
         send_ticket_link(ticket)
 
         flash(f'Ticket submitted successfully! Type: {ticket_type}', 'success')
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
 
     return render_template('ticket.html')
 
@@ -328,70 +329,38 @@ def save_photo(photo, first_name, last_name):
     Speichert das hochgeladene Foto in dem konfigurierten Upload-Ordner.
     Validiert Dateigröße, Dateityp und Pfad.
     """
-    # Bestimme den Upload-Ordner (absoluter Pfad)
     upload_folder = os.path.join(current_app.root_path, current_app.config['UPLOAD_FOLDER'])
-
-    # Stelle sicher, dass der Upload-Ordner existiert
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
     if not os.path.exists(upload_folder):
         current_app.logger.error(f"Upload folder still does not exist: {upload_folder}")
         flash('Server-Fehler: Upload-Verzeichnis konnte nicht erstellt werden.', 'danger')
-        return redirect(request.url)
-
-    # Prüfe, ob ein Foto übergeben wurde
+        return None
     if photo:
-        # Stelle sicher, dass die Dateigröße (1 MB) nicht überschreitet
-        # Wichtig: Den Datei-Cursor zurücksetzen, falls vorher schon gelesen wurde.
         photo.seek(0, os.SEEK_END)
         file_size = photo.tell()
         photo.seek(0)
         if file_size > 1 * 1024 * 1024:
             flash('File size exceeds the limit of 1MB.', 'danger')
-            return redirect(request.url)
-
-        # Ursprünglichen Dateinamen säubern
+            return None
         original_filename = secure_filename(photo.filename)
         if not allowed_file(original_filename):
             flash('Invalid file type.', 'danger')
-            return redirect(request.url)
-
+            return None
         try:
-            # Generiere den neuen Dateinamen
             date_str = datetime.now().strftime('%d-%m-%Y')
             safe_first_name = secure_filename(first_name)
             safe_last_name = secure_filename(last_name)
-            # Beispiel: "06-02-2025_Tim_muller.jpg"
             new_filename = f"{date_str}_{safe_first_name}_{safe_last_name}{os.path.splitext(original_filename)[1]}"
-
-            # Erzeuge den kompletten Pfad zur Datei
-            full_path = os.path.normpath(os.path.join(upload_folder, new_filename))
-
-            # Verwende realpath, um symbolische Links und relative Pfade aufzulösen
-            upload_folder_real = os.path.realpath(upload_folder)
-            full_path_real = os.path.realpath(full_path)
-
-            # Debug-Ausgaben zur Überprüfung
-            current_app.logger.info("Upload folder real path: %s", upload_folder_real)
-            current_app.logger.info("Full file path real path: %s", full_path_real)
-
-            # Validierung: Stelle sicher, dass full_path_real innerhalb des upload_folder_real liegt
-            if os.path.commonpath([upload_folder_real, full_path_real]) != upload_folder_real:
-                current_app.logger.error(f"Invalid file path: {full_path_real}")
-                raise Exception("Invalid file path")
-
-            # Speichere die Datei
-            photo.save(full_path)
-            current_app.logger.info("Photo uploaded: %s", new_filename)
-            return new_filename
-
+            file_path = os.path.join(upload_folder, new_filename)
+            photo.save(file_path)
+            rel_path = os.path.relpath(file_path, current_app.root_path)
+            return rel_path.replace('\\', '/')
         except Exception as e:
-            current_app.logger.error(f"Error saving photo: {e}")
-            flash('Error saving photo.', 'danger')
-            return redirect(request.url)
-    else:
-        flash('No photo uploaded.', 'danger')
-        return redirect(request.url)
+            current_app.logger.error(f"Fehler beim Speichern des Fotos: {e}")
+            flash('Fehler beim Speichern des Fotos.', 'danger')
+            return None
+    return None
 
 
 @login_required
@@ -412,7 +381,7 @@ def forum():
         db.session.add(message)
         db.session.commit()
         flash('Your message has been posted.', 'success')
-        return redirect(url_for('forum'))
+        return redirect(url_for('main.forum'))
 
     page = request.args.get('page', 1, type=int)
     messages = Message.query.order_by(Message.timestamp.desc()).paginate(page=page, per_page=5)

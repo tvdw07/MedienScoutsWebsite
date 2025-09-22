@@ -345,4 +345,4 @@ def delete_ticket(ticket_id):
         current_app.logger.error(f'Ticket not found: {ticket_id}, {ticket_type}')
         flash('Ticket not found.', 'danger')
 
-    return redirect(url_for('ticket_verwaltung'))
+    return redirect(url_for('main.ticket_verwaltung'))

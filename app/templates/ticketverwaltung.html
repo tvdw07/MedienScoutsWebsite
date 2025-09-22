@@ -49,7 +49,7 @@
                         <strong>Beschreibung:</strong> {{ ticket.problem_description }} <br>
                     </p>
                     <button class="btn btn-light"
-                            onclick="window.location.href='{{ url_for('ticket_details', ticket_type='problem', ticket_id=ticket.id) }}'">
+                            onclick="window.location.href='{{ url_for('main.ticket_details', ticket_type='problem', ticket_id=ticket.id) }}'">
                         Details
                     </button>
                 </div>

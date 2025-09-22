@@ -5,7 +5,7 @@
     <div class="d-flex justify-content-between mt-3">
         <button class="btn btn-secondary" onclick="window.history.back();">Zurück</button>
         {% if ticket.status_id in [2, 3] %}
-        <form method="POST" action="{{ url_for('mark_ticket_solved', ticket_id=ticket.id) }}"
+        <form method="POST" action="{{ url_for('main.mark_ticket_solved', ticket_id=ticket.id) }}"
               onsubmit="return confirm('Sind Sie sicher, dass Sie dieses Ticket als gelöst markieren möchten?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
@@ -13,7 +13,7 @@
                 <i class="fas fa-check"></i> Mark as Solved
             </button>
         </form>
-        <form method="POST" action="{{ url_for('request_help', ticket_id=ticket.id) }}"
+        <form method="POST" action="{{ url_for('main.request_help', ticket_id=ticket.id) }}"
               onsubmit="return confirm('Sind Sie sicher, dass Sie Hilfe für dieses Ticket anfordern möchten?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
@@ -23,7 +23,7 @@
         </form>
         {% endif %}
         {% if ticket.status_id == 1 %}
-        <form method="POST" action="{{ url_for('claim_ticket', ticket_id=ticket.id) }}"
+        <form method="POST" action="{{ url_for('main.claim_ticket', ticket_id=ticket.id) }}"
               onsubmit="return confirm('Sind Sie sicher, dass Sie dieses Ticket claimen möchten?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
@@ -33,7 +33,7 @@
             </button>
         </form>
         {% elif ticket.status_id == 4 and current_user.is_admin %}
-        <form method="POST" action="{{ url_for('delete_ticket', ticket_id=ticket.id) }}">
+        <form method="POST" action="{{ url_for('admin.delete_ticket', ticket_id=ticket.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
             <button type="submit" class="btn btn-danger" onclick="confirmDelete()">
@@ -85,7 +85,7 @@
     {% if ticket.status_id != 1 and ticket.status_id != 4 %}
     <div class="card mt-4 p-3">
         <h2 class="card-title">Antworten</h2>
-        <form method="POST" action="{{ url_for('submit_response', ticket_id=ticket.id) }}">
+        <form method="POST" action="{{ url_for('main.submit_response', ticket_id=ticket.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
             <div class="mb-3">
