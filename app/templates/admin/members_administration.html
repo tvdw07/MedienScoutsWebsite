@@ -153,7 +153,7 @@
       $('.user-row').click(function() {
         var userId = $(this).data('user-id');
         $.ajax({
-            url: "{{ url_for('user_detail', user_id=0) }}".replace("0", userId),
+            url: "{{ url_for('admin.user_detail', user_id=0) }}".replace("0", userId),
             type: 'GET',
             dataType: 'json',
             success: function(response) {
@@ -197,7 +197,7 @@
           $('#user_id').val('');
           $('#new_password').val('');
           $.ajax({
-              url: "{{ url_for('user_detail', user_id=0) }}".replace("0", 0),
+              url: "{{ url_for('admin.user_detail', user_id=0) }}".replace("0", 0),
               type: 'GET',
               dataType: 'json',
               success: function(response) {
@@ -257,11 +257,11 @@
           };
           if (userId) {
               // Update existing user
-              ajaxOptions.url = "{{ url_for('user_detail', user_id=0) }}".replace("0", userId);
+              ajaxOptions.url = "{{ url_for('admin.user_detail', user_id=0) }}".replace("0", userId);
               ajaxOptions.type = 'POST';
           } else {
               // Create new user
-              ajaxOptions.url = "{{ url_for('create_user') }}";
+              ajaxOptions.url = "{{ url_for('admin.create_user') }}";
               ajaxOptions.type = 'POST';
           }
           $.ajax(ajaxOptions);

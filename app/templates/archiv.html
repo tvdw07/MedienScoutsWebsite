@@ -18,7 +18,7 @@
                         <strong>Beschreibung:</strong> {{ ticket.problem_description }} <br>
                     </p>
                     <button class="btn btn-primary"
-                            onclick="window.location.href='{{ url_for('ticket_details', ticket_type='problem', ticket_id=ticket.id) }}'">
+                            onclick="window.location.href='{{ url_for('main.ticket_details', ticket_type='problem', ticket_id=ticket.id) }}'">
                         Details
                     </button>
                 </div>
@@ -42,7 +42,7 @@
                         <strong>Trainingstyp:</strong> {{ ticket.training_type }} <br>
                     </p>
                     <button class="btn btn-primary"
-                            onclick="window.location.href='{{ url_for('ticket_details', ticket_type='training', ticket_id=ticket.id) }}'">
+                            onclick="window.location.href='{{ url_for('main.ticket_details', ticket_type='training', ticket_id=ticket.id) }}'">
                         Details
                     </button>
                 </div>
@@ -66,7 +66,7 @@
                         <strong>Nachricht:</strong> {{ ticket.message }} <br>
                     </p>
                     <button class="btn btn-primary"
-                            onclick="window.location.href='{{ url_for('ticket_details', ticket_type='misc', ticket_id=ticket.id) }}'">
+                            onclick="window.location.href='{{ url_for('main.ticket_details', ticket_type='misc', ticket_id=ticket.id) }}'">
                         Details
                     </button>
                 </div>

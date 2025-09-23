@@ -6,7 +6,7 @@
 <div class="container">
     <div class="content-section">
         <h2 class="text-center mb-4">Login</h2>
-        <form method="POST" action="{{ url_for('login') }}">
+        <form method="POST" action="{{ url_for('auth.login') }}">
             {{ form.hidden_tag() }}
             <div class="form-group mb-3">
                 <label for="username">Username <i class="fas fa-user"></i></label>
@@ -24,7 +24,7 @@
                 </div>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <a href="{{ url_for('request_password_reset') }}" class="text-muted">Forgot password?</a>
+                <a href="{{ url_for('auth.request_password_reset') }}" class="text-muted">Forgot password?</a>
             </div>
             <button type="submit" class="btn btn-primary btn-block">Login</button>
         </form>

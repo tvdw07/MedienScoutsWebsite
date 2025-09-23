@@ -11,7 +11,8 @@ A comprehensive ticketing system with multiple ticket types and user management.
 
 ## Installation
 
-The project install instructions are based on ubuntu 22.04.
+The project install instructions are based on Ubuntu 22.04, but SQLite is now used as the default database (no extra DB
+setup required).
 
 ### Step 1: Update the system to the newest version
 
@@ -61,89 +62,48 @@ pip install -r requirements.txt
 ### Step 7: Update the configuration file
 
 ```bash
-#For the db and security settings
+# For the db and security settings
 nano config.py
-#For the email settings
+# For the email settings
 nano config.ini
 ```
 
-#### Step 7.1: Create the database
+### Step 8: Datenbank initialisieren
+
+Execute the following script to create the SQLite database and tables:
 
 ```bash
-sudo apt-get install mariadb-server
+python setup_db.py
 ```
 
-```bash
-sudo mysql_secure_installation
-```
-
-```bash
-sudo mysql -u root -p
-```
-
-#### Step 7.2: Create the database
-
-Activate the virtual environment if it isn't anymore:
-
-```bash
-source venv/bin/activate
-```
-
-Please use the following command to create the database tables:
-
-```bash
-flask db init
-flask db migrate -m "Initial migration."
-flask db upgrade
-```
-
-After creating the database, you can insert the ticket status values:
-
-```bash
-INSERT INTO ticket_status (id, status) 
-VALUES 
-(1, 'open'),
-(2, 'seen'),
-(3, 'in progress'),
-(4, 'closed'),
-(5, 'help required');
-```
-
-### Step 8: (Optional) Test the application
+### Step 9: (Optional) Test the application
 
 ```bash
 python wsgi.py
 ```
 
-If it doesn't work please check your firewall settings.
+If it does not work, check your firewall settings.
 
-After that test it with the following command:
+Test the application with the following command:
 ```bash
 sudo ufw allow 8000
 gunicorn --workers 4 --worker-class gevent --timeout 120 --bind 0.0.0.0:8000 wsgi:app 
 ```
 
-Then you can access the application via the server ip and port 8000.
+You can then call up the application via the server IP and port 8000.
 
-### Step 9: Complete Setup Individually
+### Step 10: Complete Setup Individually
 
--Create a systemd service with gunicorn
+- Create a systemd service with gunicorn
+- Activate the service
+- Install nginx
+- Create a new site configuration
+- Activate the site
+- Restart the systemd service
+- Restart nginx
+- Test the application
 
--Enable the service
-
--Install nginx
-
--Create a new site configuration
-
--Enable the site
-
--Restart systemd service
-
--Restart nginx
-
--Test the application
-
-A good tutorial can be found here:
+Ein gutes Tutorial findest du hier:
 https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-22-04
 
 ## Usage
@@ -166,4 +126,3 @@ For support or inquiries, please reach out to:
 
 **Tim von der Weppen**  
 Email: [tim.vonderweppen@web.de](mailto:tim.vonderweppen@web.de)
-
