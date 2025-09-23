@@ -252,7 +252,7 @@ def send_ticket():
             photo_path = save_photo(photo, first_name, last_name)
             if photo and photo_path is None:
                 # Fehler beim Foto-Upload, Fehler wurde bereits geflasht
-                return redirect(request.url)
+                return redirect(url_for('main.send_ticket'))
             ticket = ProblemTicket(
                 first_name=first_name,
                 last_name=last_name,
