@@ -1,5 +1,6 @@
 import logging
 import os
+from crypt import methods
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_migrate import Migrate
@@ -99,8 +100,9 @@ def create_app():
         app=app,
         default_limits=["1000 per hour"]
     )
-    limiter.limit("5 per minute")(app.route('/login', methods=['POST']))
-    limiter.limit("2 per minute")(app.route('/send_ticket', methods=['POST']))
+    limiter.limit("3 per minute")(app.route('/login', methods=['POST']))
+    limiter.limit("1 per minute")(app.route('/send_ticket', methods=['POST']))
+    limiter.limit("1 per minute")(app.route("/request_password_reset", methods=['POST']))
     app.logger.info("Rate limiting initialized")
 
     db.init_app(app)
