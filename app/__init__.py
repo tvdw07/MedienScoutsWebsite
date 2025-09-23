@@ -1,6 +1,5 @@
 import logging
 import os
-from crypt import methods
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_migrate import Migrate
@@ -11,7 +10,6 @@ from flask_wtf import CSRFProtect
 from sqlalchemy import text
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from werkzeug.security import generate_password_hash
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 from .models import db, User, ProblemTicket, ProblemTicketUser, TicketHistory, TrainingTicket, TrainingTicketUser, \
     MiscTicket, MiscTicketUser
@@ -206,9 +204,6 @@ def create_app():
     scheduler.start()
     app.logger.info('Scheduler started')
     atexit.register(lambda: scheduler.shutdown())
-
-    with app.app_context():
-        pass  # Admin-User-Anlage entfernt, erfolgt jetzt im Setup-Skript
 
     from .blueprints.bp_auth import bp_auth
     from .blueprints.bp_admin import bp_admin
