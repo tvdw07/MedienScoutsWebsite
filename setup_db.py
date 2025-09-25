@@ -1,7 +1,14 @@
+import os
+import subprocess
 from app import create_app
 from flask_migrate import upgrade
 from app.models import db, User
 from werkzeug.security import generate_password_hash
+
+# Prüfen, ob migrations-Verzeichnis existiert, sonst initialisieren
+if not os.path.exists('migrations'):
+    subprocess.run(['flask', 'db', 'init'], check=True)
+    print("Migrations-Verzeichnis wurde erstellt.")
 
 app = create_app()
 

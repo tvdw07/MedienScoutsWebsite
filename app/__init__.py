@@ -124,23 +124,14 @@ def create_app():
         flash('You must be logged in to access this page.', 'warning')
         return redirect('/login')
 
-    def check_database():
-        try:
-            with app.app_context():
-                db.session.execute(text('SELECT 1'))
-            return True
-        except Exception as e:
-            app.logger.error(f"Database check failed: {e}")
-            return False
-
-    database_available = check_database()
-
     @app.before_request
     def before_request():
         session.permanent = True
-        if not database_available:
-            app.logger.error('Database is not available')
-            return ("Service Unavailable Try again later!"), 503
+        try:
+            db.session.execute(text('SELECT 1'))
+        except Exception as e:
+            app.logger.error(f'Database is not available: {e}')
+            return "Service Unavailable Try again later!", 503
 
     @app.errorhandler(404)
     def page_not_found(e):
