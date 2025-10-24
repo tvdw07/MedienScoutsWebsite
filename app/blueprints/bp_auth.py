@@ -85,5 +85,5 @@ def reset_password(token, user_id):
         flash('Password requirements are not met. Please ensure your password meets all the criteria.', 'danger')
         current_app.logger.warning(f'Password reset failed for user: {user.username}')
 
-    return render_template('reset_password.html', form=form, token=token, user_id=user_id,
+    return render_template('auth/reset_password.html', form=form, token=token, user_id=user_id,
                            password_policy=password_policy)
