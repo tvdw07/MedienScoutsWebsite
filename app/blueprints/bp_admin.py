@@ -123,6 +123,67 @@ def _build_user_detail_payload(user):
     }
 
 
+def _serialize_role_permission(permission, assigned=False):
+    return {
+        'id': permission.id,
+        'name': permission.name,
+        'description': permission.description,
+        'assigned': assigned,
+    }
+
+
+def _build_role_detail_payload(role):
+    all_permissions = Permission.query.order_by(Permission.name).all()
+
+    if role is None:
+        assigned_permissions = []
+        available_permissions = all_permissions
+        role_data = {
+            'id': 0,
+            'name': '',
+            'description': '',
+            'is_system_role': False,
+            'permission_count': 0,
+            'user_count': 0,
+            'is_admin_role': False,
+        }
+    else:
+        assigned_permissions = sorted(role.permissions, key=lambda permission: permission.name.lower())
+        assigned_permission_ids = {permission.id for permission in assigned_permissions}
+        available_permissions = [
+            permission for permission in all_permissions if permission.id not in assigned_permission_ids
+        ]
+        role_data = {
+            'id': role.id,
+            'name': role.name,
+            'description': role.description or '',
+            'is_system_role': role.is_system_role,
+            'permission_count': len(assigned_permissions),
+            'user_count': len(role.users),
+            'is_admin_role': role.name == 'Admin',
+        }
+
+    assigned_permission_ids = {permission.id for permission in assigned_permissions}
+
+    return {
+        'role': role_data,
+        'assigned_permissions': [_serialize_role_permission(permission, True) for permission in assigned_permissions],
+        'available_permissions': [
+            _serialize_role_permission(permission, False) for permission in available_permissions
+        ],
+        'permissions': [
+            _serialize_role_permission(permission, permission.id in assigned_permission_ids)
+            for permission in all_permissions
+        ],
+        'capabilities': {
+            'can_create': current_user.has_permission('roles.create'),
+            'can_edit': current_user.has_permission('roles.edit'),
+            'can_delete': current_user.has_permission('roles.delete'),
+            'can_assign_permissions': current_user.has_permission('roles.assign_permissions'),
+        },
+    }
+
+
 @bp_admin.route('/admin/panel')
 @permission_required('admin.view_statistics')
 def admin_panel():
@@ -364,6 +425,165 @@ def create_user():
     payload = _build_user_detail_payload(new_user)
     payload['message'] = 'User created successfully.'
     return jsonify(payload), 201
+
+
+@bp_admin.route('/roles/administration')
+@permission_required('roles.view')
+def roles_administration():
+    roles = Role.query.order_by(Role.name).all()
+    return render_template(
+        'admin/roles_administration.html',
+        roles=roles,
+        can_create_role=current_user.has_permission('roles.create'),
+        can_edit_role=current_user.has_permission('roles.edit'),
+        can_delete_role=current_user.has_permission('roles.delete'),
+        can_assign_permissions=current_user.has_permission('roles.assign_permissions'),
+    )
+
+
+@bp_admin.route('/roles/<int:role_id>', methods=['GET'])
+@permission_required('roles.view')
+def role_detail(role_id):
+    if role_id == 0:
+        return jsonify(_build_role_detail_payload(None))
+
+    role = db.session.get(Role, role_id)
+    if not role:
+        return jsonify({'error': 'Role not found'}), 404
+
+    return jsonify(_build_role_detail_payload(role))
+
+
+@bp_admin.route('/roles', methods=['POST'])
+@permission_required('roles.create')
+def create_role():
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+
+    if not name:
+        return jsonify({'error': 'Role name is required'}), 400
+
+    existing_role = Role.query.filter(db.func.lower(Role.name) == name.lower()).one_or_none()
+    if existing_role:
+        return jsonify({'error': 'Role already exists'}), 400
+
+    new_role = Role(name=name, description=description or None, is_system_role=False)
+    db.session.add(new_role)
+    db.session.commit()
+
+    payload = _build_role_detail_payload(new_role)
+    payload['message'] = 'Role created successfully.'
+    return jsonify(payload), 201
+
+
+@bp_admin.route('/roles/<int:role_id>/edit', methods=['POST'])
+@permission_required('roles.edit')
+def edit_role(role_id):
+    role = db.session.get(Role, role_id)
+    if not role:
+        return jsonify({'error': 'Role not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    raw_name = data.get('name')
+    raw_description = data.get('description')
+
+    if raw_name is not None:
+        new_name = raw_name.strip()
+        if not new_name:
+            return jsonify({'error': 'Role name is required'}), 400
+
+        if role.is_system_role and new_name != role.name:
+            return jsonify({'error': 'System roles cannot be renamed'}), 400
+
+        if new_name.lower() != role.name.lower():
+            duplicate = Role.query.filter(
+                db.func.lower(Role.name) == new_name.lower(),
+                Role.id != role.id,
+            ).one_or_none()
+            if duplicate:
+                return jsonify({'error': 'Role already exists'}), 400
+            role.name = new_name
+
+    if raw_description is not None:
+        role.description = raw_description.strip()
+
+    db.session.commit()
+
+    payload = _build_role_detail_payload(role)
+    payload['message'] = 'Role updated successfully.'
+    return jsonify(payload)
+
+
+@bp_admin.route('/roles/<int:role_id>/delete', methods=['POST'])
+@permission_required('roles.delete')
+def delete_role(role_id):
+    role = db.session.get(Role, role_id)
+    if not role:
+        return jsonify({'error': 'Role not found'}), 404
+
+    if role.is_system_role:
+        return jsonify({'error': 'System roles cannot be deleted'}), 400
+
+    if role.name == 'Admin':
+        return jsonify({'error': 'Admin role cannot be deleted'}), 400
+
+    db.session.delete(role)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Role deleted successfully.', 'role_id': role_id})
+
+
+@bp_admin.route('/roles/<int:role_id>/permissions', methods=['POST'])
+@permission_required('roles.assign_permissions')
+def update_role_permissions(role_id):
+    role = db.session.get(Role, role_id)
+    if not role:
+        return jsonify({'error': 'Role not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    permission_id = data.get('permission_id')
+
+    if action not in {'add', 'remove'}:
+        return jsonify({'error': 'Invalid action'}), 400
+    if permission_id is None:
+        return jsonify({'error': 'permission_id is required'}), 400
+
+    permission = db.session.get(Permission, int(permission_id))
+    if not permission:
+        return jsonify({'error': 'Permission not found'}), 404
+
+    current_permission_ids = {existing_permission.id for existing_permission in role.permissions}
+
+    if role.name == 'Admin':
+        future_permission_ids = set(current_permission_ids)
+        if action == 'add':
+            future_permission_ids.add(permission.id)
+        else:
+            future_permission_ids.discard(permission.id)
+
+        all_permission_ids = {existing_permission.id for existing_permission in Permission.query.all()}
+        if future_permission_ids != all_permission_ids:
+            return jsonify({'error': 'Admin role must retain all permissions'}), 400
+
+    changed = False
+    if action == 'add' and permission not in role.permissions:
+        role.permissions.append(permission)
+        changed = True
+    elif action == 'remove' and permission in role.permissions:
+        role.permissions.remove(permission)
+        changed = True
+
+    if changed:
+        db.session.commit()
+
+    payload = _build_role_detail_payload(role)
+    if action == 'add':
+        payload['message'] = f'Permission {permission.name} added to role.'
+    else:
+        payload['message'] = f'Permission {permission.name} removed from role.'
+    return jsonify(payload)
 
 
 @bp_admin.route('/delete_message/<int:message_id>', methods=['POST'])

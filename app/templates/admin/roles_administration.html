@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block title %}Role Management{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">Role Management</h1>
+            <p class="text-muted mb-0">Manage roles and assign permissions.</p>
+        </div>
+        {% if can_create_role %}
+        <button type="button" class="btn btn-primary" id="createRoleBtn">
+            <i class="fa-solid fa-plus me-1"></i>New Role
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" id="rolesTable">
+            <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Permissions</th>
+                <th>Users</th>
+                <th class="text-end">Action</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for role in roles %}
+            <tr>
+                <td>{{ role.name }}</td>
+                <td>{{ role.description or '-' }}</td>
+                <td>
+                    {% if role.is_system_role %}
+                    <span class="badge bg-warning text-dark">System</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Custom</span>
+                    {% endif %}
+                </td>
+                <td>{{ role.permissions | length }}</td>
+                <td>{{ role.users | length }}</td>
+                <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-primary js-role-detail"
+                            data-role-id="{{ role.id }}">
+                        <i class="fa-solid fa-gear me-1"></i>Details
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="roleModal" tabindex="-1" aria-labelledby="roleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="roleModalLabel">Role Details</h5>
+                    <div class="text-muted small" id="roleModalSubtitle"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="roleDetailAlert"></div>
+
+                <form id="roleForm">
+                    <input type="hidden" id="role_id" value="0">
+
+                    <div class="row g-4">
+                        <div class="col-lg-4">
+                            <section class="border rounded-1 p-3 h-100">
+                                <h6 class="mb-3">Role data</h6>
+                                <div class="mb-3">
+                                    <label for="role_name" class="form-label">Name</label>
+                                    <input type="text" class="form-control" id="role_name" maxlength="100" required>
+                                    <div class="form-text" id="roleNameHint"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="role_description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="role_description" rows="5"></textarea>
+                                </div>
+                                <dl class="row mb-0" id="roleMasterData">
+                                    <dt class="col-5 text-muted">Type</dt>
+                                    <dd class="col-7 mb-2">-</dd>
+                                    <dt class="col-5 text-muted">Permissions</dt>
+                                    <dd class="col-7 mb-2">-</dd>
+                                    <dt class="col-5 text-muted">Users</dt>
+                                    <dd class="col-7 mb-0">-</dd>
+                                </dl>
+                            </section>
+                        </div>
+
+                        <div class="col-lg-8">
+                            <section class="border rounded-1 p-3 mb-4" id="permissionManagementSection">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                    <h6 class="mb-0">Permissions</h6>
+                                    <span class="text-muted small" id="permissionManagementHint"></span>
+                                </div>
+
+                                <div class="alert alert-warning py-2 small d-none" id="adminRoleWarning">
+                                    The Admin role must keep all permissions.
+                                </div>
+
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <h6 class="small text-uppercase text-muted mb-3">Assigned permissions</h6>
+                                        <div id="assignedPermissionsList" class="d-flex flex-wrap gap-2"></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="small text-uppercase text-muted mb-3">Available permissions</h6>
+                                        <div id="availablePermissionsList" class="d-flex flex-wrap gap-2"></div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="border rounded-1 p-3">
+                                <h6 class="mb-3">Permission overview</h6>
+                                <div id="permissionOverviewList" class="d-flex flex-wrap gap-2"></div>
+                            </section>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger me-auto d-none" id="deleteRoleBtn">
+                    <i class="fa-solid fa-trash me-1"></i>Delete
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fa-solid fa-xmark me-1"></i>Close
+                </button>
+                <button type="button" class="btn btn-primary" id="saveRoleBtn">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const roleModalElement = document.getElementById('roleModal');
+    const roleModal = bootstrap.Modal.getOrCreateInstance(roleModalElement);
+    const roleModalLabel = document.getElementById('roleModalLabel');
+    const roleModalSubtitle = document.getElementById('roleModalSubtitle');
+    const roleDetailAlert = document.getElementById('roleDetailAlert');
+    const roleIdInput = document.getElementById('role_id');
+    const roleNameInput = document.getElementById('role_name');
+    const roleDescriptionInput = document.getElementById('role_description');
+    const roleNameHint = document.getElementById('roleNameHint');
+    const roleMasterData = document.getElementById('roleMasterData');
+    const permissionManagementSection = document.getElementById('permissionManagementSection');
+    const permissionManagementHint = document.getElementById('permissionManagementHint');
+    const adminRoleWarning = document.getElementById('adminRoleWarning');
+    const assignedPermissionsList = document.getElementById('assignedPermissionsList');
+    const availablePermissionsList = document.getElementById('availablePermissionsList');
+    const permissionOverviewList = document.getElementById('permissionOverviewList');
+    const saveRoleBtn = document.getElementById('saveRoleBtn');
+    const deleteRoleBtn = document.getElementById('deleteRoleBtn');
+
+    const escapeMap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    };
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => escapeMap[char]);
+    }
+
+    function renderAlert(message, type = 'success') {
+        if (!message) {
+            roleDetailAlert.innerHTML = '';
+            return;
+        }
+        roleDetailAlert.innerHTML = `
+            <div class="alert alert-${escapeHtml(type)} alert-dismissible fade show" role="alert">
+                ${escapeHtml(message)}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    }
+
+    function roleBadge(role) {
+        return role.is_system_role
+            ? '<span class="badge bg-warning text-dark">System</span>'
+            : '<span class="badge bg-secondary">Custom</span>';
+    }
+
+    function renderPermissionChip(permission, actionType, canAssign) {
+        const actionIcon = actionType === 'add' ? 'plus' : 'minus';
+        const actionClass = actionType === 'add' ? 'btn-outline-success' : 'btn-outline-danger';
+        const badgeClass = actionType === 'add' ? 'bg-success' : 'bg-primary';
+        const button = canAssign
+            ? `
+                <button type="button" class="btn btn-sm ${actionClass} js-permission-action"
+                        data-permission-id="${permission.id}" data-permission-action="${actionType}">
+                    <i class="fa-solid fa-${actionIcon}"></i>
+                </button>
+            `
+            : '';
+
+        return `
+            <span class="d-inline-flex align-items-center gap-1">
+                <span class="badge ${badgeClass} text-white">${escapeHtml(permission.name)}</span>
+                ${button}
+            </span>
+        `;
+    }
+
+    function renderPermissionOverview(permission) {
+        const badgeClass = permission.assigned ? 'bg-success' : 'bg-secondary';
+        return `<span class="badge ${badgeClass} text-white">${escapeHtml(permission.name)}</span>`;
+    }
+
+    function renderRoleDetail(detail, message = '') {
+        const role = detail.role;
+        const capabilities = detail.capabilities || {};
+
+        roleIdInput.value = role.id;
+        roleNameInput.value = role.name || '';
+        roleDescriptionInput.value = role.description || '';
+        roleModalLabel.textContent = role.id ? `Role Details: ${role.name}` : 'Create Role';
+        roleModalSubtitle.textContent = role.id ? `ID ${role.id}` : 'New role';
+        roleModalElement.dataset.roleId = role.id;
+        roleModalElement.dataset.isSystemRole = role.is_system_role ? '1' : '0';
+        roleModalElement.dataset.isAdminRole = role.is_admin_role ? '1' : '0';
+
+        renderAlert(message, 'success');
+
+        const canEdit = Boolean(capabilities.can_edit);
+        const canDelete = Boolean(capabilities.can_delete);
+        const canAssign = Boolean(capabilities.can_assign_permissions);
+        const canCreate = Boolean(capabilities.can_create);
+        const isCreateMode = role.id === 0;
+
+        const isNameLocked = !isCreateMode && Boolean(role.is_system_role);
+        roleNameInput.disabled = !isCreateMode && isNameLocked;
+        roleDescriptionInput.disabled = isCreateMode ? !canCreate : !canEdit;
+        roleNameHint.textContent = isNameLocked
+            ? 'System role names are fixed.'
+            : 'Use a unique role name.';
+
+        const typeBadge = roleBadge(role);
+        const permissionCount = role.permission_count ?? 0;
+        const userCount = role.user_count ?? 0;
+        roleMasterData.innerHTML = `
+            <dt class="col-5 text-muted">Type</dt>
+            <dd class="col-7 mb-2">${typeBadge}</dd>
+            <dt class="col-5 text-muted">Permissions</dt>
+            <dd class="col-7 mb-2">${permissionCount}</dd>
+            <dt class="col-5 text-muted">Users</dt>
+            <dd class="col-7 mb-0">${userCount}</dd>
+        `;
+
+        permissionManagementSection.classList.toggle('d-none', isCreateMode);
+        permissionManagementHint.textContent = isCreateMode
+            ? 'Create the role first to assign permissions.'
+            : canAssign
+                ? 'Permission changes are checked on the server.'
+                : 'Read only.';
+
+        adminRoleWarning.classList.toggle('d-none', !role.is_admin_role);
+
+        assignedPermissionsList.innerHTML = isCreateMode
+            ? '<span class="text-muted">No permissions yet.</span>'
+            : (detail.assigned_permissions || []).map((permission) => renderPermissionChip(permission, 'remove', canAssign)).join('');
+
+        availablePermissionsList.innerHTML = isCreateMode
+            ? '<span class="text-muted">Create the role first.</span>'
+            : (detail.available_permissions || []).map((permission) => renderPermissionChip(permission, 'add', canAssign)).join('');
+
+        permissionOverviewList.innerHTML = (detail.permissions || []).map(renderPermissionOverview).join('');
+
+        saveRoleBtn.textContent = isCreateMode ? 'Create' : 'Save';
+        saveRoleBtn.disabled = isCreateMode ? !canCreate : !canEdit;
+
+        deleteRoleBtn.classList.toggle('d-none', isCreateMode || !canDelete || role.is_system_role);
+    }
+
+    async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': csrfToken,
+                ...(options.headers || {}),
+            },
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || data.message || `Request failed with status ${response.status}`);
+        }
+        return data;
+    }
+
+    async function openRoleDetail(roleId) {
+        renderAlert('');
+        roleModalLabel.textContent = 'Loading...';
+        roleModalSubtitle.textContent = '';
+        roleNameInput.value = '';
+        roleDescriptionInput.value = '';
+        assignedPermissionsList.innerHTML = '';
+        availablePermissionsList.innerHTML = '';
+        permissionOverviewList.innerHTML = '';
+        roleMasterData.innerHTML = '<dd class="col-12 mb-0 text-muted">Loading...</dd>';
+        permissionManagementSection.classList.add('d-none');
+        deleteRoleBtn.classList.add('d-none');
+        saveRoleBtn.disabled = true;
+        roleModal.show();
+
+        try {
+            const detail = await fetchJson(`{{ url_for('admin.role_detail', role_id=0) }}`.replace('0', roleId));
+            renderRoleDetail(detail);
+        } catch (error) {
+            roleModalLabel.textContent = 'Role Details';
+            renderAlert(error.message, 'danger');
+        }
+    }
+
+    async function createRole() {
+        const payload = {
+            name: roleNameInput.value.trim(),
+            description: roleDescriptionInput.value.trim(),
+        };
+        await fetchJson(`{{ url_for('admin.create_role') }}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        window.location.reload();
+    }
+
+    async function editRole() {
+        const roleId = roleIdInput.value;
+        const payload = {
+            name: roleNameInput.value.trim(),
+            description: roleDescriptionInput.value.trim(),
+        };
+        await fetchJson(`{{ url_for('admin.edit_role', role_id=0) }}`.replace('0', roleId), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        window.location.reload();
+    }
+
+    async function deleteRole() {
+        if (!confirm('Delete this role?')) {
+            return;
+        }
+        const roleId = roleIdInput.value;
+        await fetchJson(`{{ url_for('admin.delete_role', role_id=0) }}`.replace('0', roleId), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({}),
+        });
+        window.location.reload();
+    }
+
+    async function changePermission(permissionId, action) {
+        const roleId = roleIdInput.value;
+        const detail = await fetchJson(`{{ url_for('admin.update_role_permissions', role_id=0) }}`.replace('0', roleId), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                permission_id: parseInt(permissionId, 10),
+                action: action,
+            }),
+        });
+        renderRoleDetail(detail, detail.message || 'Permission updated.');
+    }
+
+    document.addEventListener('click', async (event) => {
+        const detailButton = event.target.closest('.js-role-detail');
+        if (detailButton) {
+            event.preventDefault();
+            await openRoleDetail(detailButton.dataset.roleId);
+            return;
+        }
+
+        const permissionButton = event.target.closest('.js-permission-action');
+        if (permissionButton) {
+            event.preventDefault();
+            try {
+                await changePermission(permissionButton.dataset.permissionId, permissionButton.dataset.permissionAction);
+            } catch (error) {
+                renderAlert(error.message, 'danger');
+            }
+            return;
+        }
+    });
+
+    const createRoleBtn = document.getElementById('createRoleBtn');
+    if (createRoleBtn) {
+        createRoleBtn.addEventListener('click', async () => {
+            await openRoleDetail(0);
+        });
+    }
+
+    roleModalElement.addEventListener('shown.bs.modal', () => {
+        if (roleIdInput.value === '0') {
+            roleNameInput.focus();
+        }
+    });
+
+    document.getElementById('roleForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            if (roleIdInput.value === '0') {
+                await createRole();
+            } else {
+                await editRole();
+            }
+        } catch (error) {
+            renderAlert(error.message, 'danger');
+        }
+    });
+
+    deleteRoleBtn.addEventListener('click', async () => {
+        try {
+            await deleteRole();
+        } catch (error) {
+            renderAlert(error.message, 'danger');
+        }
+    });
+})();
+</script>
+{% endblock %}
