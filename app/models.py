@@ -69,20 +69,62 @@ class User(UserMixin, db.Model):
     def is_teacher(self):
         return self.role == RoleEnum.TEACHER
 
-    def has_permission(self, permission_name):
-        if self.role == RoleEnum.ADMIN:
-            return True
+    def _collect_permission_sources(self):
+        if not self.active:
+            return {}
+
+        sources = {}
+
+        for user_role in self.user_roles:
+            role = user_role.role
+            if not role:
+                continue
+
+            role_source = f'role:{role.name}'
+            for permission in role.permissions:
+                if not permission or not permission.name:
+                    continue
+                sources.setdefault(permission.name, set()).add(role_source)
 
         for override in self.permission_overrides:
-            if override.permission and override.permission.name == permission_name:
-                return override.allowed
+            permission = override.permission
+            if not permission or not permission.name:
+                continue
+            sources.setdefault(permission.name, set()).add(
+                'user_allow' if override.allowed else 'user_deny'
+            )
 
-        for role in self.roles:
-            for permission in role.permissions:
-                if permission.name == permission_name:
-                    return True
+        return sources
 
-        return False
+    def get_permission_sources(self):
+        sources = self._collect_permission_sources()
+        return {
+            permission_name: sorted(source_values)
+            for permission_name, source_values in sources.items()
+        }
+
+    def get_effective_permissions(self):
+        effective_permissions = set()
+        for permission_name, source_values in self._collect_permission_sources().items():
+            if 'user_deny' in source_values:
+                continue
+            if any(source.startswith('role:') for source in source_values) or 'user_allow' in source_values:
+                effective_permissions.add(permission_name)
+
+        return effective_permissions
+
+    def has_permission(self, permission_name):
+        if not permission_name or not self.active:
+            return False
+
+        source_values = self._collect_permission_sources().get(permission_name)
+        if not source_values:
+            return False
+
+        if 'user_deny' in source_values:
+            return False
+
+        return any(source.startswith('role:') for source in source_values) or 'user_allow' in source_values
 
     @property
     def user_privileges(self):
