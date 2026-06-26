@@ -3,6 +3,7 @@ import subprocess
 
 from app import create_app
 from app.models import db, TicketStatus, User
+from app.permission_seed import seed_permissions_and_roles
 from flask_migrate import upgrade
 
 
@@ -62,3 +63,6 @@ with app.app_context():
             print('Kein Admin-User vorhanden. Setze ADMIN_PASSWORD in .env, um einen initialen Admin anzulegen.')
     else:
         print('Admin-User existiert bereits.')
+
+    seed_permissions_and_roles()
+    print('Permissionen und Standardrollen sind angelegt.')
