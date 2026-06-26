@@ -1,4 +1,4 @@
-import configparser
+import os
 import smtplib
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
@@ -39,15 +39,10 @@ def test_email_functionality(recipient_email):
 import logging
 
 def send_email(template, recipient, **variables):
-    # Read configuration file
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-
-    # Read SMTP configuration data
-    smtp_server = config['SMTP']['server']
-    smtp_port = int(config['SMTP']['port'])
-    smtp_user = config['SMTP']['user']
-    smtp_password = config['SMTP']['password']
+    smtp_server = os.environ['SMTP_SERVER']
+    smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+    smtp_user = os.environ['SMTP_USER']
+    smtp_password = os.environ['SMTP_PASSWORD']
 
     variables['current_year'] = datetime.now().year
 
@@ -68,7 +63,6 @@ def send_email(template, recipient, **variables):
     # Send email
     try:
         server = smtplib.SMTP(smtp_server, smtp_port)
-        server.set_debuglevel(1)  # Enable SMTP debug output
         server.starttls()
         server.login(smtp_user, smtp_password)
         server.sendmail(from_email, recipient, message.as_string())
@@ -585,7 +579,7 @@ def send_ticket_link(ticket):
     token = ticket.generate_token()
     link = url_for('main.view_ticket', token=token, _external=True)
     send_email(ticket_link_template, ticket.email, link=link)
-    current_app.logger.info(f"Sent ticket link to {ticket.email}")
+    current_app.logger.info(f"Sent ticket link for ticket {ticket.id}")
 
 
 def notify_admin(ticket, ticket_type, message):
@@ -645,4 +639,4 @@ def send_reset_email(user):
     token = user.generate_reset_password_token()
     reset_url = url_for('auth.reset_password', token=token, user_id=user.id, _external=True)
     send_email(reset_password_template, user.email, reset_url=reset_url)
-    current_app.logger.info(f"Sent password reset email to {user.email}")
+    current_app.logger.info(f"Sent password reset email for user {user.id}")

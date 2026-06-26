@@ -88,7 +88,11 @@ def create_app():
             'data:'
         ]
     }
-    talisman = Talisman(app, content_security_policy=csp)
+    talisman = Talisman(
+        app,
+        content_security_policy=csp,
+        force_https=app.config['FORCE_HTTPS']
+    )
     app.logger.info("CSRF protection initialized")
 
     # Limiter
@@ -98,9 +102,6 @@ def create_app():
         app=app,
         default_limits=["1000 per hour"]
     )
-    limiter.limit("3 per minute")(app.route('/login', methods=['POST']))
-    limiter.limit("1 per minute")(app.route('/send_ticket', methods=['POST']))
-    limiter.limit("1 per minute")(app.route("/request_password_reset", methods=['POST']))
     app.logger.info("Rate limiting initialized")
 
     db.init_app(app)
@@ -202,6 +203,9 @@ def create_app():
     app.register_blueprint(bp_auth)
     app.register_blueprint(bp_admin)
     app.register_blueprint(bp_main)
+    limiter.limit("3 per minute", methods=["POST"])(app.view_functions["auth.login"])
+    limiter.limit("1 per minute", methods=["POST"])(app.view_functions["main.send_ticket"])
+    limiter.limit("1 per minute", methods=["POST"])(app.view_functions["auth.request_password_reset"])
     from . import routes
     app.logger.info('Application started successfully')
     return app

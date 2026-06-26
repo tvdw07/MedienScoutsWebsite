@@ -95,11 +95,11 @@ def ticket_details(ticket_type, ticket_id):
         ticket = MiscTicket.query.get(ticket_id)
     else:
         flash('Ungültiger Ticket-Typ.', 'danger')
-        return redirect(url_for('ticket_verwaltung'))
+        return redirect(url_for('main.ticket_verwaltung'))
 
     if not ticket:
         flash('Ticket nicht gefunden.', 'danger')
-        return redirect(url_for('ticket_verwaltung'))
+        return redirect(url_for('main.ticket_verwaltung'))
 
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket_id).order_by(
         TicketHistory.created_at).all()
@@ -125,7 +125,7 @@ def claim_ticket(ticket_id):
         else:
             current_app.logger.error(f'Ungültiger Ticket-Typ: {ticket_type}')
             flash('Ungültiger Ticket-Typ.', 'danger')
-            return redirect(url_for('ticket_verwaltung'))
+            return redirect(url_for('main.ticket_verwaltung'))
 
         ticket.status_id = 2  # Ticket wird als in Bearbeitung markiert
         db.session.add(ticket_user)
@@ -239,16 +239,12 @@ def send_ticket():
             first_name = request.form.get('first_name')
             last_name = request.form.get('last_name')
             email = request.form.get('email_problem')
-            print(f'First Name: {first_name}, Last Name: {last_name}, Email: {email}')
             class_stufe = request.form.get('class')
             serial_number = request.form.get('serial_number')
             problem_description = request.form.get('problem_description')
             steps = request.form.getlist('steps')
             steps_taken = ", ".join(steps)
             photo = request.files.get('photo')
-            current_app.logger.info("Ticket submitted: %s, %s, %s, %s, %s, %s, %s", first_name, last_name, email,
-                                    class_stufe,
-                            serial_number, problem_description, steps_taken)
             photo_path = save_photo(photo, first_name, last_name)
             if photo and photo_path is None:
                 # Fehler beim Foto-Upload, Fehler wurde bereits geflasht
@@ -266,6 +262,7 @@ def send_ticket():
             )
 
             db.session.add(ticket)
+            current_app.logger.info('Problem ticket submitted')
 
         elif ticket_type == 'fortbildung':
             if not request.form.get('class_teacher') or not request.form.get(
@@ -278,8 +275,6 @@ def send_ticket():
             training_type = request.form.get('training_type')
             training_reason = request.form.get('training_reason')
             proposed_date = request.form.get('proposed_date')
-            current_app.logger.info("Ticket submitted: %s, %s, %s, %s, %s", class_teacher, email, training_type,
-                            training_reason, proposed_date)
             ticket = TrainingTicket(
                 class_teacher=class_teacher,
                 email=email,
@@ -290,6 +285,7 @@ def send_ticket():
             )
 
             db.session.add(ticket)
+            current_app.logger.info('Training ticket submitted')
 
         else:
             if not request.form.get('first_name_sonstiges') or not request.form.get(
@@ -301,7 +297,6 @@ def send_ticket():
             last_name = request.form.get('last_name_sonstiges')
             message = request.form.get('message_sonstiges')
             email = request.form.get('email_sonstiges')
-            current_app.logger.info("Ticket submitted: %s, %s, %s, %s", first_name, last_name, email, message)
 
             ticket = MiscTicket(
                 first_name=first_name,
@@ -312,6 +307,7 @@ def send_ticket():
             )
 
             db.session.add(ticket)
+            current_app.logger.info('Misc ticket submitted')
 
         db.session.commit()
 
@@ -363,8 +359,8 @@ def save_photo(photo, first_name, last_name):
     return None
 
 
-@login_required
 @bp_main.route('/logout')
+@login_required
 def logout():
     logout_user()
     flash('You have been logged out.', 'success')
@@ -402,7 +398,7 @@ def load_more_messages(page):
             'deleted': message.deleted
         } for message in messages.items],
         'more_messages': messages.has_next,
-        'is_admin': current_user.is_admin()
+        'is_admin': current_user.is_admin
     })
 
 
@@ -454,9 +450,9 @@ def view_ticket(token):
 
     # If the ticket is not found or the token is invalid, log an error and redirect to the home page
     if not ticket:
-        current_app.logger.error(f'Invalid or expired token: {token}')
+        current_app.logger.error('Invalid or expired ticket token')
         flash('Invalid or expired token', 'danger')
-        return redirect(url_for('home'))
+        return redirect(url_for('main.home'))
 
     # Handle the form submission for ticket response
     if request.method == 'POST':
@@ -475,7 +471,7 @@ def view_ticket(token):
         notify_user_about_ticket_change(ticket, response_message, ticket_type)
 
         # Redirect to the same view to display the updated ticket details
-        return redirect(url_for('view_ticket', token=token, ticket=ticket))
+        return redirect(url_for('main.view_ticket', token=token))
 
     # Retrieve the ticket history and render the ticket details template
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket.id).order_by(
@@ -513,8 +509,6 @@ def profile():
     password_form = ChangePasswordForm()
 
     if form.validate_on_submit():
-        print('Form validated successfully.')
-
         # Ensure the upload folder exists
         upload_folder = os.path.join(current_app.root_path, current_app.config['USER_PROFILES'])
         if not os.path.exists(upload_folder):
@@ -534,16 +528,15 @@ def profile():
             # Erstelle neuen Dateinamen, z. B. "Tim_Mueller.jpg"
             new_filename = f"{safe_first_name}_{safe_last_name}{os.path.splitext(original_filename)[1]}"
             new_filename = new_filename.replace(' ', '_')
-            print(f'Saving profile image as: {new_filename}')
 
             # Erzeuge den vollständigen Dateipfad
             full_path = os.path.normpath(os.path.join(upload_folder, new_filename))
             full_path_real = os.path.realpath(full_path)
             # Validierung: Prüfen, ob der Dateipfad innerhalb des Upload-Ordners liegt
             if os.path.commonpath([upload_folder_real, full_path_real]) != upload_folder_real:
-                current_app.logger.error(f"Invalid file path: {full_path_real}")
+                current_app.logger.error('Invalid profile image upload path')
                 flash('Error saving profile image due to invalid file path.', 'danger')
-                return redirect(url_for('profile'))
+                return redirect(url_for('main.profile'))
 
             try:
                 # Datei speichern
@@ -551,7 +544,7 @@ def profile():
             except Exception as e:
                 current_app.logger.error(f"Error saving profile image: {e}")
                 flash('Error saving profile image.', 'danger')
-                return redirect(url_for('profile'))
+                return redirect(url_for('main.profile'))
 
             # Bild bearbeiten (z.B. verkleinern)
             try:
@@ -561,7 +554,7 @@ def profile():
             except Exception as e:
                 current_app.logger.error(f"Error processing image: {e}")
                 flash('Error processing profile image.', 'danger')
-                return redirect(url_for('profile'))
+                return redirect(url_for('main.profile'))
 
             current_user.profile_picture = new_filename
 
@@ -580,10 +573,8 @@ def profile():
             # Authorization check: Only the current user can access their profile picture
             if full_name != current_full_name:
                 flash('You are not allowed to access this profile picture.', 'danger')
-                current_app.logger.warning(
-                    f'Unauthorized access attempt: {full_name} by {current_full_name}'
-                )
-                return redirect(url_for('profile'))
+                current_app.logger.warning(f'Unauthorized profile image access attempt by user_id={current_user.id}')
+                return redirect(url_for('main.profile'))
 
             safe_first = secure_filename(current_user.first_name)
             safe_last = secure_filename(current_user.last_name)
@@ -603,17 +594,17 @@ def profile():
             if not photo_filename:
                 flash('Profile picture not found.', 'danger')
                 current_app.logger.info('Profile picture not found')
-                return redirect(url_for('profile'))
+                return redirect(url_for('main.profile'))
 
             # Validation: Ensure the file path is within the upload folder
             if os.path.commonpath([upload_folder_real, file_path_real]) != upload_folder_real:
                 flash('Invalid file path.', 'danger')
-                current_app.logger.warning(f'Invalid file path access attempt: {file_path_real}')
-                return redirect(url_for('profile'))
+                current_app.logger.warning(f'Invalid profile image path access attempt by user_id={current_user.id}')
+                return redirect(url_for('main.profile'))
 
             current_app.logger.info('Profile picture found, deleting the file.')
             os.remove(file_path_real)
-            return redirect(url_for('profile'))
+            return redirect(url_for('main.profile'))
 
         # ---------------------------
         # 3. Benutzerinformationen aktualisieren
@@ -623,9 +614,8 @@ def profile():
         current_user.email = form.email.data
         db.session.commit()
         flash('Profile updated successfully.', 'success')
-        return redirect(url_for('profile'))
+        return redirect(url_for('main.profile'))
 
-    print('Rendering profile template.')
     return render_template('profile.html', form=form, password_form=password_form)
 
 
@@ -641,10 +631,8 @@ def profile_picture(first_name, last_name):
     # Authorization check: Only the current user can access their profile picture
     if full_name != current_full_name:
         flash('You are not allowed to access this profile picture.', 'danger')
-        current_app.logger.warning(
-            f'Unauthorized access attempt: {full_name} by {current_full_name}'
-        )
-        return redirect(url_for('profile'))
+        current_app.logger.warning(f'Unauthorized profile image access attempt by user_id={current_user.id}')
+        return redirect(url_for('main.profile'))
 
     # Try to load the filename from the database field 'photo'
     # If not set, generate the filename based on the user's data
@@ -675,10 +663,8 @@ def profile_picture(first_name, last_name):
     # Validation: Ensure the file path is within the upload folder
     if os.path.commonpath([upload_folder_real, file_path_real]) != upload_folder_real:
         flash('Invalid file path.', 'danger')
-        current_app.logger.warning(f'Invalid file path access attempt: {file_path_real}')
-        return redirect(url_for('profile'))
-
-    current_app.logger.info("Absolute file path being checked: %s", file_path_real)
+        current_app.logger.warning(f'Invalid profile image path access attempt by user_id={current_user.id}')
+        return redirect(url_for('main.profile'))
 
     # Serve the profile picture if it exists, otherwise serve the default image
     if os.path.exists(file_path_real):
@@ -702,4 +688,4 @@ def send_password_reset_email():
         flash('Password reset instructions have been sent to your email.', 'info')
     else:
         flash('User not found.', 'danger')
-    return redirect(url_for('profile'))
+    return redirect(url_for('main.profile'))

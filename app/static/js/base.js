@@ -19,7 +19,7 @@ setTimeout(function() {
 // ===================================================================
 
 // URL to logout (rendered from the server)
-const logoutUrl = "{{ url_for('logout') }}";
+const logoutUrl = "/logout";
 
 // Variables for tracking idle time
 let idleTime = 0;

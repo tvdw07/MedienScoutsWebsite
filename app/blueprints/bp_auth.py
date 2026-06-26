@@ -19,23 +19,22 @@ def login():
             if user.password_hash is None or user.password_hash == '':
                 send_reset_email(user)
                 flash('Your password is not set. A password reset email has been sent to you.', 'info')
-                return redirect(url_for('login'))
+                return redirect(url_for('auth.login'))
             if user.check_password(form.password.data):
                 if not user.active:
-                    current_app.logger.warning(f'Inactive user tried to log in: {user.username}')
+                    current_app.logger.warning(f'Inactive user tried to log in: user_id={user.id}')
                     flash('Your account is inactive. Please contact the administrator.', 'danger')
-                    return redirect(url_for('login'))
+                    return redirect(url_for('auth.login'))
                 login_user(user)
                 user.last_login = datetime.now()  # Update last_login
                 db.session.commit()
                 flash('Logged in successfully.', 'success')
-                current_app.logger.info(f'User logged in: {user.username}')
+                current_app.logger.info(f'User logged in: user_id={user.id}')
 
                 if next_page:
                     from urllib.parse import urlparse
                     next_page = next_page.replace('\\', '')
                     if not urlparse(next_page).netloc and not urlparse(next_page).scheme:
-                        print(f'Next Page: {next_page}')
                         session.pop('next', None)  # Clear the 'next' after login
                         return redirect(next_page)
                     else:
@@ -43,7 +42,7 @@ def login():
                 else:
                     return redirect(url_for('main.home'))
         flash('Invalid username or password', 'danger')
-        current_app.logger.warning(f'Invalid login attempt for user: {form.username.data}')
+        current_app.logger.warning('Invalid login attempt')
 
     return render_template('auth/login.html', form=form)
 
@@ -69,8 +68,8 @@ def reset_password(token, user_id):
     user = User.query.get(user_id)
     if not user or not user.validate_reset_password_token(token, user_id):
         flash('The reset link is invalid or has expired.', 'danger')
-        current_app.logger.warning(f'Invalid or expired reset link: {token}')
-        return redirect(url_for('request_password_reset'))
+        current_app.logger.warning('Invalid or expired reset link')
+        return redirect(url_for('auth.request_password_reset'))
 
     form = PasswordResetForm()
     password_policy = current_app.config['PASSWORD_POLICY']
@@ -79,11 +78,11 @@ def reset_password(token, user_id):
         user.set_password(form.password.data)
         db.session.commit()
         flash('Your password has been reset!', 'success')
-        current_app.logger.info(f'Password reset for user: {user.username}')
-        return redirect(url_for('login'))
+        current_app.logger.info(f'Password reset for user_id={user.id}')
+        return redirect(url_for('auth.login'))
     elif request.method == 'POST':
         flash('Password requirements are not met. Please ensure your password meets all the criteria.', 'danger')
-        current_app.logger.warning(f'Password reset failed for user: {user.username}')
+        current_app.logger.warning(f'Password reset failed for user_id={user.id}')
 
     return render_template('auth/reset_password.html', form=form, token=token, user_id=user_id,
                            password_policy=password_policy)

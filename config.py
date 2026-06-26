@@ -1,21 +1,54 @@
 # config.py
+import os
 import os.path
 from datetime import timedelta
 
-# Datenbank-Konfiguration für SQLite
+
+def _load_env_file(path):
+    if not os.path.exists(path):
+        return
+    with open(path, encoding='utf-8') as env_file:
+        for line in env_file:
+            line = line.strip()
+            if not line or line.startswith('#') or '=' not in line:
+                continue
+            key, value = line.split('=', 1)
+            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+def _required_env(name):
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(f'Missing required environment variable: {name}')
+    return value
+
+
+def _env_bool(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+# Database configuration for SQLite
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-SQLALCHEMY_DATABASE_URI = f'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
+_load_env_file(os.path.join(BASE_DIR, '.env'))
+APP_ENV = os.environ.get('APP_ENV', os.environ.get('FLASK_ENV', 'development')).lower()
+IS_PRODUCTION = APP_ENV == 'production'
+SQLALCHEMY_DATABASE_URI = os.environ.get(
+    'SQLALCHEMY_DATABASE_URI',
+    f'sqlite:///{os.path.join(BASE_DIR, "app.db")}'
+)
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-# config.py
-PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)  # Set session timeout to 30 minutes
-WTF_CSRF_ENABLED = True  # Enable CSRF protection
-UPLOAD_FOLDER = os.path.join('static/uploads')  # Folder for file uploads
-USER_PROFILES = os.path.join('static/uploads/profiles')  # Folder for user profile photos
+PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
+WTF_CSRF_ENABLED = True
+UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join('static/uploads'))
+USER_PROFILES = os.environ.get('USER_PROFILES', os.path.join('static/uploads/profiles'))
 
-# Secret key for generating tokens
-SECRET_KEY = 'YOUR_SECRET_KEY'
-SECURITY_PASSWORD_SALT = 'YOUR_PASSWORD_SALT'
+SECRET_KEY = _required_env('SECRET_KEY')
+SECURITY_PASSWORD_SALT = _required_env('SECURITY_PASSWORD_SALT')
+TICKET_TOKEN_MAX_AGE_SECONDS = int(os.environ.get('TICKET_TOKEN_MAX_AGE_SECONDS', 30 * 24 * 60 * 60))
 
 PASSWORD_POLICY = {
     'min_length': 8,
@@ -25,6 +58,7 @@ PASSWORD_POLICY = {
     'require_special': True
 }
 
+FORCE_HTTPS = _env_bool('FORCE_HTTPS', IS_PRODUCTION)
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', IS_PRODUCTION)
 SESSION_COOKIE_SAMESITE = 'Strict'

@@ -62,10 +62,8 @@ pip install -r requirements.txt
 ### Step 7: Update the configuration file
 
 ```bash
-# For the db and security settings
-nano config.py
-# For the email settings
-nano config.ini
+cp .env.example .env
+nano .env
 ```
 
 ### Step 8: Datenbank initialisieren
@@ -91,6 +89,26 @@ gunicorn --workers 4 --worker-class gevent --timeout 120 --bind 0.0.0.0:8000 wsg
 ```
 
 You can then call up the application via the server IP and port 8000.
+
+### Docker
+
+Create or update `.env` from `.env.example`, then start the app:
+
+```bash
+docker compose up --build
+```
+
+The container runs `python setup_db.py` before starting Gunicorn on port `8000`.
+SQLite data is stored in the `app_data` volume, uploads in the `app_uploads` volume.
+For production behind HTTPS, set:
+
+```env
+APP_ENV=production
+FORCE_HTTPS=true
+SESSION_COOKIE_SECURE=true
+```
+
+PostgreSQL can be added later by changing `SQLALCHEMY_DATABASE_URI` and adding a database service.
 
 ### Step 10: Complete Setup Individually
 

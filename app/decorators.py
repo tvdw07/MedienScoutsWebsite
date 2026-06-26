@@ -11,7 +11,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_admin:  # Check if the current user is an admin
             flash('You do not have permission to access this page.', 'danger')
-            return redirect(url_for('home'))
+            return redirect(url_for('main.home'))
         return f(*args, **kwargs)
 
     return decorated_function
@@ -23,7 +23,7 @@ def teacher_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_teacher:  # Check if the current user is a teacher
             flash('You do not have permission to access this page.', 'danger')
-            return redirect(url_for('home'))
+            return redirect(url_for('main.home'))
         return f(*args, **kwargs)
 
     return decorated_function
@@ -51,7 +51,7 @@ def ticket_owner_required(f):
 
         if not ticket_user:  # If the user is not the owner, deny access
             flash('You do not have permission to access this ticket.', 'danger')
-            return redirect(url_for('ticket_verwaltung'))
+            return redirect(url_for('main.ticket_verwaltung'))
 
         return f(*args, **kwargs)
 

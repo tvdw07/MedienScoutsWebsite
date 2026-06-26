@@ -27,7 +27,7 @@
     <div class="card mt-4 p-3">
         <h2 class="card-title">Antworten</h2>
         {% if ticket.status != 4 %}
-            <form method="POST" action="{{ url_for('view_ticket', token=token) }}">
+            <form method="POST" action="{{ url_for('main.view_ticket', token=token) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label for="response_message" class="form-label">Antwort</label>

@@ -1,0 +1,19 @@
+services:
+  web:
+    build: .
+    env_file:
+      - .env
+    environment:
+      SQLALCHEMY_DATABASE_URI: sqlite:////data/app.db
+      UPLOAD_FOLDER: static/uploads
+      USER_PROFILES: static/uploads/profiles
+    ports:
+      - "8000:8000"
+    volumes:
+      - app_data:/data
+      - app_uploads:/app/app/static/uploads
+    restart: unless-stopped
+
+volumes:
+  app_data:
+  app_uploads:

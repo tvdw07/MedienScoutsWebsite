@@ -3,7 +3,7 @@ import enum
 from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
-from itsdangerous import URLSafeSerializer, URLSafeTimedSerializer, SignatureExpired, BadSignature
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import DateTime
@@ -104,16 +104,17 @@ class ProblemTicket(db.Model):
     status = db.relationship('TicketStatus', backref='problem_tickets')
 
     def generate_token(self):
-        s = URLSafeSerializer(current_app.config['SECRET_KEY'])
-        return s.dumps({'ticket_id': self.id})
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'ticket_id': self.id, 'ticket_type': 'problem'})
 
     @staticmethod
     def verify_token(token):
-        s = URLSafeSerializer(current_app.config['SECRET_KEY'])
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         try:
-            data = s.loads(token)
-        except Exception as e:
-            print(f"Token verification error: {e}")
+            data = s.loads(token, max_age=current_app.config['TICKET_TOKEN_MAX_AGE_SECONDS'])
+        except (SignatureExpired, BadSignature):
+            return None
+        if data.get('ticket_type') != 'problem':
             return None
         return ProblemTicket.query.get(data['ticket_id'])
 
@@ -131,16 +132,17 @@ class TrainingTicket(db.Model):
     status = db.relationship('TicketStatus', backref='training_tickets')
 
     def generate_token(self):
-        s = URLSafeSerializer(current_app.config['SECRET_KEY'])
-        return s.dumps({'ticket_id': self.id})
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'ticket_id': self.id, 'ticket_type': 'training'})
 
     @staticmethod
     def verify_token(token):
-        s = URLSafeSerializer(current_app.config['SECRET_KEY'])
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         try:
-            data = s.loads(token)
-        except Exception as e:
-            print(f"Token verification error: {e}")
+            data = s.loads(token, max_age=current_app.config['TICKET_TOKEN_MAX_AGE_SECONDS'])
+        except (SignatureExpired, BadSignature):
+            return None
+        if data.get('ticket_type') != 'training':
             return None
         return TrainingTicket.query.get(data['ticket_id'])
 
@@ -157,16 +159,17 @@ class MiscTicket(db.Model):
     status = db.relationship('TicketStatus', backref='misc_tickets')
 
     def generate_token(self):
-        s = URLSafeSerializer(current_app.config['SECRET_KEY'])
-        return s.dumps({'ticket_id': self.id})
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'ticket_id': self.id, 'ticket_type': 'misc'})
 
     @staticmethod
     def verify_token(token):
-        s = URLSafeSerializer(current_app.config['SECRET_KEY'])
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
         try:
-            data = s.loads(token)
-        except Exception as e:
-            print(f"Token verification error: {e}")
+            data = s.loads(token, max_age=current_app.config['TICKET_TOKEN_MAX_AGE_SECONDS'])
+        except (SignatureExpired, BadSignature):
+            return None
+        if data.get('ticket_type') != 'misc':
             return None
         return MiscTicket.query.get(data['ticket_id'])
 

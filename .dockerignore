@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+__pycache__/
+*.pyc
+.env
+app.db
+logs/
+app/static/uploads/
