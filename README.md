@@ -5,9 +5,20 @@ A comprehensive ticketing system with multiple ticket types and user management.
 ## Features
 - Multiple ticket types for different use cases
 - User-friendly interface for ticket creation, management, and tracking
-- Role-based user management system
+- Permission-based access control with role grouping
 - Administrative panel for configuration and user management
 - Logging and history tracking for tickets
+
+## Permission System
+The application now uses a permission-based model instead of direct role checks.
+Full details are documented in [docs/permission-system.md](docs/permission-system.md).
+
+In short:
+- Permissions are defined centrally in `app/permission_seed.py`
+- Roles only group permissions
+- User overrides can allow or deny individual permissions
+- Protected routes use `@permission_required("permission.name")`
+- Standard roles are `Admin`, `Teacher`, `MediaScout`, and `User`
 
 ## Installation
 

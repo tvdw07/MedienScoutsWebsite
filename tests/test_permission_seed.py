@@ -90,3 +90,7 @@ def test_existing_admin_users_are_backfilled_and_seed_is_idempotent(app):
     assert {role.name for role in stored_admin.roles} == {'Admin'}
     assert {role.name for role in stored_teacher.roles} == {'Teacher'}
     assert {role.name for role in stored_member.roles} == {'User'}
+    assert stored_admin.has_permission('admin.view') is True
+    assert stored_admin.has_permission('admin.view_statistics') is True
+    assert stored_admin.has_permission('admin.manage_settings') is True
+    assert stored_admin.get_effective_permissions() == set(STANDARD_PERMISSIONS)

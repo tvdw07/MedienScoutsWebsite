@@ -10,7 +10,7 @@ from flask import abort, flash, jsonify, redirect, render_template, request, ses
 from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from app.decorators import any_permission_required, permission_required, ticket_owner_required
-from app.forms import MessageForm, EditProfileForm, ChangePasswordForm
+from app.forms import MessageForm, EditProfileForm
 from app.models import db, Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, TicketHistory, User, RoleEnum, RankEnum
 from email_tools import send_ticket_link, notify_admin, notify_client, notify_user_about_ticket_change, send_reset_email
@@ -511,7 +511,6 @@ def get_date_time():
 @permission_required('profile.view')
 def profile():
     form = EditProfileForm(obj=current_user)
-    password_form = ChangePasswordForm()
     assigned_roles = sorted(current_user.roles, key=lambda role: role.name.lower())
 
     if form.validate_on_submit():
@@ -607,7 +606,6 @@ def profile():
     return render_template(
         'profile.html',
         form=form,
-        password_form=password_form,
         assigned_roles=assigned_roles,
     )
 

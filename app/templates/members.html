@@ -29,7 +29,10 @@
                     <tr>
                         <td>{{ member.first_name }}</td>
                         <td>{{ member.last_name }}</td>
-                        <td class="text-right">{{ member.role.name if member.role else 'Nicht definiert' }}</td>
+                        <td class="text-right">
+                            {% set role_names = member.roles | map(attribute='name') | list %}
+                            {{ role_names|join(', ') if role_names else 'Nicht definiert' }}
+                        </td>
                         <td class="text-right">{{ member.active_from.strftime('%d.%m.%Y') if member.active_from else 'Nicht definiert' }}</td>
                         <td class="text-right">
                             {% if member.active_until %}
@@ -69,7 +72,10 @@
                     <tr>
                         <td>{{ member.first_name }}</td>
                         <td>{{ member.last_name }}</td>
-                        <td class="text-right">{{ member.role.name if member.role else 'Nicht definiert' }}</td>
+                        <td class="text-right">
+                            {% set role_names = member.roles | map(attribute='name') | list %}
+                            {{ role_names|join(', ') if role_names else 'Nicht definiert' }}
+                        </td>
                         <td class="text-right">{{ member.active_from.strftime('%d.%m.%Y') if member.active_from else 'Nicht definiert' }}</td>
                         <td class="text-right">{{ member.active_until.strftime('%d.%m.%Y') if member.active_until else 'Nicht definiert' }}</td>
                     </tr>

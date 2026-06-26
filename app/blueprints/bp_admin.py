@@ -31,6 +31,12 @@ LEGACY_ROLE_TO_STANDARD_ROLE_NAME = {
     RoleEnum.MEMBER.value: 'User',
 }
 
+ADMIN_ACCESS_PERMISSIONS = {
+    'admin.view',
+    'admin.view_statistics',
+    'admin.manage_settings',
+}
+
 
 def _to_iso(value):
     return value.isoformat() if value else None
@@ -55,6 +61,53 @@ def _serialize_permission(permission, source_values, is_effective):
         'denied': 'user_deny' in source_values,
         'has_override': 'user_allow' in source_values or 'user_deny' in source_values,
     }
+
+
+def _all_permission_names():
+    return {permission.name for permission in Permission.query.all()}
+
+
+def _role_has_all_permissions(role):
+    return {permission.name for permission in role.permissions} == _all_permission_names()
+
+
+def _effective_permissions_from_state(roles, overrides, active=True):
+    if not active:
+        return set()
+
+    sources = {}
+    for role in roles:
+        if not role:
+            continue
+
+        role_source = f'role:{role.name}'
+        for permission in role.permissions:
+            if not permission or not permission.name:
+                continue
+            sources.setdefault(permission.name, set()).add(role_source)
+
+    for override in overrides:
+        permission = override.permission
+        if not permission or not permission.name:
+            continue
+        sources.setdefault(permission.name, set()).add('user_allow' if override.allowed else 'user_deny')
+
+    effective_permissions = set()
+    for permission_name, source_values in sources.items():
+        if 'user_deny' in source_values:
+            continue
+        if any(source.startswith('role:') for source in source_values) or 'user_allow' in source_values:
+            effective_permissions.add(permission_name)
+
+    return effective_permissions
+
+
+def _has_admin_access_from_state(roles, overrides, active=True):
+    return bool(_effective_permissions_from_state(roles, overrides, active) & ADMIN_ACCESS_PERMISSIONS)
+
+
+def _has_admin_access(user):
+    return _has_admin_access_from_state(user.roles, user.permission_overrides, user.active)
 
 
 def _build_user_detail_payload(user):
@@ -160,7 +213,7 @@ def _build_role_detail_payload(role):
             'is_system_role': role.is_system_role,
             'permission_count': len(assigned_permissions),
             'user_count': len(role.users),
-            'is_admin_role': role.name == 'Admin',
+            'is_admin_role': role.is_system_role and _role_has_all_permissions(role),
         }
 
     assigned_permission_ids = {permission.id for permission in assigned_permissions}
@@ -291,6 +344,7 @@ def update_user_roles(user_id):
     if not role:
         return jsonify({'error': 'Role not found'}), 404
 
+    self_admin_access = user.id == current_user.id and _has_admin_access(user)
     changed = False
     if action == 'add' and role not in user.roles:
         user.roles.append(role)
@@ -298,6 +352,10 @@ def update_user_roles(user_id):
     elif action == 'remove' and role in user.roles:
         user.roles.remove(role)
         changed = True
+
+    if changed and self_admin_access and not _has_admin_access(user):
+        db.session.rollback()
+        return jsonify({'error': 'You cannot remove your own admin access.'}), 400
 
     if changed:
         db.session.commit()
@@ -328,6 +386,7 @@ def update_user_permissions(user_id):
     if not permission:
         return jsonify({'error': 'Permission not found'}), 404
 
+    self_admin_access = user.id == current_user.id and _has_admin_access(user)
     existing_override = next(
         (override for override in user.permission_overrides if override.permission_id == permission.id),
         None,
@@ -349,6 +408,10 @@ def update_user_permissions(user_id):
     elif existing_override:
         db.session.delete(existing_override)
         changed = True
+
+    if changed and self_admin_access and not _has_admin_access(user):
+        db.session.rollback()
+        return jsonify({'error': 'You cannot remove your own admin access.'}), 400
 
     if changed:
         db.session.commit()
@@ -525,8 +588,14 @@ def delete_role(role_id):
     if role.is_system_role:
         return jsonify({'error': 'System roles cannot be deleted'}), 400
 
-    if role.name == 'Admin':
-        return jsonify({'error': 'Admin role cannot be deleted'}), 400
+    if current_user.is_authenticated and any(user.id == current_user.id for user in role.users):
+        future_roles = [assigned_role for assigned_role in current_user.roles if assigned_role.id != role.id]
+        if _has_admin_access(current_user) and not _has_admin_access_from_state(
+            future_roles,
+            current_user.permission_overrides,
+            current_user.active,
+        ):
+            return jsonify({'error': 'You cannot remove your own admin access.'}), 400
 
     db.session.delete(role)
     db.session.commit()
@@ -555,8 +624,9 @@ def update_role_permissions(role_id):
         return jsonify({'error': 'Permission not found'}), 404
 
     current_permission_ids = {existing_permission.id for existing_permission in role.permissions}
+    self_admin_access = current_user.is_authenticated and any(user.id == current_user.id for user in role.users)
 
-    if role.name == 'Admin':
+    if role.is_system_role and _role_has_all_permissions(role):
         future_permission_ids = set(current_permission_ids)
         if action == 'add':
             future_permission_ids.add(permission.id)
@@ -574,6 +644,10 @@ def update_role_permissions(role_id):
     elif action == 'remove' and permission in role.permissions:
         role.permissions.remove(permission)
         changed = True
+
+    if changed and self_admin_access and not _has_admin_access(current_user):
+        db.session.rollback()
+        return jsonify({'error': 'You cannot remove your own admin access.'}), 400
 
     if changed:
         db.session.commit()

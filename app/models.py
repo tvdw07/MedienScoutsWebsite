@@ -61,18 +61,6 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    @property
-    def is_admin(self):
-        return (
-            self.has_permission('admin.view')
-            or self.has_permission('admin.view_statistics')
-            or self.has_permission('admin.manage_settings')
-        )
-
-    @property
-    def is_teacher(self):
-        return self.has_permission('tickets.assign')
-
     def _collect_permission_sources(self):
         if not self.active:
             return {}
@@ -133,10 +121,6 @@ class User(UserMixin, db.Model):
                 return True
 
         return False
-
-    @property
-    def user_privileges(self):
-        return self.permission_overrides
 
     def generate_reset_password_token(self):
         serializer = URLSafeTimedSerializer(current_app.secret_key)
@@ -409,8 +393,3 @@ class UserPermissionOverride(db.Model):
     @privilege_id.setter
     def privilege_id(self, value):
         self.permission_id = value
-
-
-# Backward-compatible aliases for existing imports and admin flows.
-Privilege = Permission
-UserPrivilege = UserPermissionOverride
