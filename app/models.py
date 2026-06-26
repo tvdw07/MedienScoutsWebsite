@@ -7,6 +7,7 @@ from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import DateTime
+from sqlalchemy.ext.associationproxy import association_proxy
 
 db = SQLAlchemy()
 
@@ -42,6 +43,18 @@ class User(UserMixin, db.Model):
     active_until = db.Column(DateTime, nullable=True)  # Date when the user becomes inactive
     last_login = db.Column(db.DateTime, nullable=True)
 
+    user_roles = db.relationship(
+        'UserRole',
+        back_populates='user',
+        cascade='all, delete-orphan',
+    )
+    permission_overrides = db.relationship(
+        'UserPermissionOverride',
+        back_populates='user',
+        cascade='all, delete-orphan',
+    )
+    roles = association_proxy('user_roles', 'role', creator=lambda role: UserRole(role=role))
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -50,7 +63,30 @@ class User(UserMixin, db.Model):
 
     @property
     def is_admin(self):
-        return self.role == RoleEnum.ADMIN
+        return self.role == RoleEnum.ADMIN or self.has_permission('admin.access')
+
+    @property
+    def is_teacher(self):
+        return self.role == RoleEnum.TEACHER
+
+    def has_permission(self, permission_name):
+        if self.role == RoleEnum.ADMIN:
+            return True
+
+        for override in self.permission_overrides:
+            if override.permission and override.permission.name == permission_name:
+                return override.allowed
+
+        for role in self.roles:
+            for permission in role.permissions:
+                if permission.name == permission_name:
+                    return True
+
+        return False
+
+    @property
+    def user_privileges(self):
+        return self.permission_overrides
 
     def generate_reset_password_token(self):
         serializer = URLSafeTimedSerializer(current_app.secret_key)
@@ -226,16 +262,105 @@ class TicketHistory(db.Model):
         self.author_type = author_type
 
 
-class Privilege(db.Model):
+class Permission(db.Model):
+    __tablename__ = 'permission'
+
     id = db.Column(db.Integer, primary_key=True)
-    category = db.Column(db.String(50), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+
+    role_permissions = db.relationship(
+        'RolePermission',
+        back_populates='permission',
+        cascade='all, delete-orphan',
+    )
+    user_permission_overrides = db.relationship(
+        'UserPermissionOverride',
+        back_populates='permission',
+        cascade='all, delete-orphan',
+    )
+    roles = association_proxy('role_permissions', 'role', creator=lambda role: RolePermission(role=role))
+
+    def __init__(self, **kwargs):
+        category = kwargs.pop('category', None)
+        if category is not None and 'description' not in kwargs:
+            kwargs['description'] = category
+        super().__init__(**kwargs)
 
 
-class UserPrivilege(db.Model):
+class Role(db.Model):
+    __tablename__ = 'role'
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    privilege_id = db.Column(db.Integer, db.ForeignKey('privilege.id'), nullable=False)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    is_system_role = db.Column(db.Boolean, nullable=False, default=False)
 
-    user = db.relationship('User', backref='user_privileges')
-    privilege = db.relationship('Privilege', backref='user_privileges')
+    user_roles = db.relationship(
+        'UserRole',
+        back_populates='role',
+        cascade='all, delete-orphan',
+    )
+    role_permissions = db.relationship(
+        'RolePermission',
+        back_populates='role',
+        cascade='all, delete-orphan',
+    )
+    users = association_proxy('user_roles', 'user', creator=lambda user: UserRole(user=user))
+    permissions = association_proxy(
+        'role_permissions',
+        'permission',
+        creator=lambda permission: RolePermission(permission=permission),
+    )
+
+
+class RolePermission(db.Model):
+    __tablename__ = 'role_permission'
+
+    role_id = db.Column(db.Integer, db.ForeignKey('role.id', ondelete='CASCADE'), primary_key=True)
+    permission_id = db.Column(db.Integer, db.ForeignKey('permission.id', ondelete='CASCADE'), primary_key=True)
+
+    role = db.relationship('Role', back_populates='role_permissions')
+    permission = db.relationship('Permission', back_populates='role_permissions')
+
+
+class UserRole(db.Model):
+    __tablename__ = 'user_role'
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey('role.id', ondelete='CASCADE'), primary_key=True)
+
+    user = db.relationship('User', back_populates='user_roles')
+    role = db.relationship('Role', back_populates='user_roles')
+
+
+class UserPermissionOverride(db.Model):
+    __tablename__ = 'user_permission_override'
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    permission_id = db.Column(db.Integer, db.ForeignKey('permission.id', ondelete='CASCADE'), primary_key=True)
+    allowed = db.Column(db.Boolean, nullable=False, default=True)
+    reason = db.Column(db.Text, nullable=True)
+
+    user = db.relationship('User', back_populates='permission_overrides')
+    permission = db.relationship('Permission', back_populates='user_permission_overrides')
+
+    def __init__(self, **kwargs):
+        privilege_id = kwargs.pop('privilege_id', None)
+        if privilege_id is not None and 'permission_id' not in kwargs:
+            kwargs['permission_id'] = privilege_id
+        kwargs.setdefault('allowed', True)
+        super().__init__(**kwargs)
+
+    @property
+    def privilege_id(self):
+        return self.permission_id
+
+    @privilege_id.setter
+    def privilege_id(self, value):
+        self.permission_id = value
+
+
+# Backward-compatible aliases for existing imports and admin flows.
+Privilege = Permission
+UserPrivilege = UserPermissionOverride

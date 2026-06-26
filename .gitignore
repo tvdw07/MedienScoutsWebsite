@@ -1,6 +1,9 @@
 .env
-app.db
 logs/
 app/static/uploads/
-/migrations/
+**/__pycache__/
+*.pyc
+/migrations/*
+!/migrations/versions/
+!/migrations/versions/*.py
 /.idea/
