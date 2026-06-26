@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask_migrate import Migrate
 from flask_talisman import Talisman
-from flask import Flask, flash, render_template, redirect, session
+from flask import Flask, flash, render_template, redirect, session, url_for
 from flask_login import LoginManager, current_user
 from flask_wtf import CSRFProtect
 from sqlalchemy import text
@@ -112,6 +112,7 @@ def create_app():
     app.logger.info("Initializing login manager")
     login_manager = LoginManager()
     login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
     app.logger.info("Login manager initialized")
 
     @login_manager.user_loader
@@ -126,7 +127,7 @@ def create_app():
     def unauthorized(e):
         app.logger.warning('Unauthorized access: %s', e)
         flash('You must be logged in to access this page.', 'warning')
-        return redirect('/login')
+        return redirect(url_for('auth.login'))
 
     @app.before_request
     def before_request():

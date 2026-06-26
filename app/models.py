@@ -63,11 +63,11 @@ class User(UserMixin, db.Model):
 
     @property
     def is_admin(self):
-        return self.role == RoleEnum.ADMIN or self.has_permission('admin.access')
+        return self.role == RoleEnum.ADMIN or self.has_permission('admin.view')
 
     @property
     def is_teacher(self):
-        return self.role == RoleEnum.TEACHER
+        return self.role == RoleEnum.TEACHER or self.has_permission('tickets.assign')
 
     def _collect_permission_sources(self):
         if not self.active:
@@ -104,6 +104,20 @@ class User(UserMixin, db.Model):
         }
 
     def get_effective_permissions(self):
+        if not self.active:
+            return set()
+
+        if self.role == RoleEnum.ADMIN:
+            effective_permissions = {
+                permission.name
+                for permission in Permission.query.all()
+                if permission.name
+            }
+            for permission_name, source_values in self._collect_permission_sources().items():
+                if 'user_deny' in source_values:
+                    effective_permissions.discard(permission_name)
+            return effective_permissions
+
         effective_permissions = set()
         for permission_name, source_values in self._collect_permission_sources().items():
             if 'user_deny' in source_values:
@@ -118,13 +132,14 @@ class User(UserMixin, db.Model):
             return False
 
         source_values = self._collect_permission_sources().get(permission_name)
-        if not source_values:
-            return False
+        if source_values:
+            if 'user_deny' in source_values:
+                return False
 
-        if 'user_deny' in source_values:
-            return False
+            if any(source.startswith('role:') for source in source_values) or 'user_allow' in source_values:
+                return True
 
-        return any(source.startswith('role:') for source in source_values) or 'user_allow' in source_values
+        return self.role == RoleEnum.ADMIN
 
     @property
     def user_privileges(self):

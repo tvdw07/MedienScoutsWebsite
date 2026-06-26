@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
-from flask_login import login_required
 from app.models import db, ProblemTicket, TrainingTicket, MiscTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, User, RoleEnum, RankEnum, Message, TicketHistory, Privilege, UserPrivilege
 from app.decorators import admin_required
@@ -11,7 +10,6 @@ bp_admin = Blueprint('admin', __name__)
 
 
 @bp_admin.route('/admin/panel')
-@login_required
 @admin_required
 def admin_panel():
     # Calculate statistics
@@ -70,7 +68,6 @@ def admin_panel():
 
 
 @bp_admin.route('/members/administration', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def members_administration():
     if request.method == 'POST':
@@ -132,7 +129,6 @@ def members_administration():
 
 
 @bp_admin.route('/members/user/<int:user_id>', methods=['GET', 'POST'])
-@login_required
 @admin_required
 def user_detail(user_id):
     if request.method == 'GET':
@@ -210,7 +206,6 @@ def user_detail(user_id):
 
 
 @bp_admin.route('/members/user', methods=['POST'])
-@login_required
 @admin_required
 def create_user():
     data = request.json
@@ -240,7 +235,6 @@ def create_user():
 
 
 @bp_admin.route('/delete_message/<int:message_id>', methods=['POST'])
-@login_required
 @admin_required
 def delete_message(message_id):
     message = Message.query.get(message_id)
@@ -256,7 +250,6 @@ def delete_message(message_id):
 
 # app/routes.py
 @bp_admin.route('/ticket/<int:ticket_id>/delete', methods=['POST'])
-@login_required
 @admin_required
 def delete_ticket(ticket_id):
     ticket_type = request.form.get('ticket_type')

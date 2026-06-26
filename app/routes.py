@@ -9,7 +9,7 @@ from PIL import Image
 from flask import jsonify, session, current_app, send_from_directory
 from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from app.decorators import ticket_owner_required
+from app.decorators import permission_required, ticket_owner_required
 from app.forms import MessageForm, EditProfileForm, ChangePasswordForm
 from app.models import Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, TicketHistory
@@ -107,10 +107,10 @@ def ticket_details(ticket_type, ticket_id):
 
 
 @bp_main.route('/ticket/<int:ticket_id>/claim', methods=['POST'])
-@login_required
+@permission_required('tickets.claim')
 def claim_ticket(ticket_id):
     """Ein Ticket wird von einem Nutzer übernommen"""
-    user_id = request.form.get('user_id')
+    user_id = current_user.id
     ticket_type = request.form.get('ticket_type')
     try:
         if ticket_type == 'problem':
@@ -140,7 +140,7 @@ def claim_ticket(ticket_id):
 
 
 @bp_main.route('/ticket/<int:ticket_id>/request_help', methods=['POST'])
-@login_required
+@permission_required('tickets.reply')
 @ticket_owner_required
 def request_help(ticket_id):
     """Request help for a specific ticket"""
@@ -161,7 +161,7 @@ def request_help(ticket_id):
 
 
 @bp_main.route('/ticket/<int:ticket_id>/submit_response', methods=['POST'])
-@login_required
+@permission_required('tickets.reply')
 @ticket_owner_required
 def submit_response(ticket_id):
     """Submit a response for a specific ticket"""
@@ -197,7 +197,7 @@ def submit_response(ticket_id):
 
 
 @bp_main.route('/ticket/<int:ticket_id>/mark_solved', methods=['POST'])
-@login_required
+@permission_required('tickets.close')
 @ticket_owner_required
 def mark_ticket_solved(ticket_id):
     """Mark a specific ticket as solved"""
