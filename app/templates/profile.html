@@ -15,7 +15,18 @@
                     <div class="card-body text-center">
                         <h5 class="card-title">{{ current_user.first_name }} {{ current_user.last_name }}</h5>
                         <p class="card-text">{{ current_user.email }}</p>
-                        <p class="card-text"><strong>Role:</strong> {{ current_user.role.name }}</p>
+                        <div class="mt-3 text-start">
+                            <h6 class="text-uppercase text-muted small mb-2">Assigned roles</h6>
+                            {% if assigned_roles %}
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for role in assigned_roles %}
+                                <span class="badge bg-secondary">{{ role.name }}</span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-muted mb-0">No roles assigned.</p>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>

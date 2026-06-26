@@ -383,7 +383,8 @@ def logout():
 def forum():
     form = MessageForm()
     if form.validate_on_submit():
-        role = 'Admin' if current_user.has_permission('admin.view') or current_user.has_permission('admin.view_statistics') or current_user.has_permission('admin.manage_settings') else 'Member'
+        assigned_roles = sorted(current_user.roles, key=lambda role: role.name.lower())
+        role = ', '.join(role.name for role in assigned_roles) or 'User'
         message = Message(author=current_user.username, role=role, content=form.content.data)
         db.session.add(message)
         db.session.commit()
@@ -511,6 +512,7 @@ def get_date_time():
 def profile():
     form = EditProfileForm(obj=current_user)
     password_form = ChangePasswordForm()
+    assigned_roles = sorted(current_user.roles, key=lambda role: role.name.lower())
 
     if form.validate_on_submit():
         if not current_user.has_permission('profile.edit'):
@@ -602,7 +604,12 @@ def profile():
         flash('Profile updated successfully.', 'success')
         return redirect(url_for('main.profile'))
 
-    return render_template('profile.html', form=form, password_form=password_form)
+    return render_template(
+        'profile.html',
+        form=form,
+        password_form=password_form,
+        assigned_roles=assigned_roles,
+    )
 
 
 @bp_main.route('/profile_picture/<first_name>_<last_name>')
