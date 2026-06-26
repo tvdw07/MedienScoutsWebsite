@@ -30,16 +30,37 @@ def _env_bool(name, default):
     return value.strip().lower() in ('1', 'true', 'yes', 'on')
 
 
-# Database configuration for SQLite
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 _load_env_file(os.path.join(BASE_DIR, '.env'))
 APP_ENV = os.environ.get('APP_ENV', os.environ.get('FLASK_ENV', 'development')).lower()
 IS_PRODUCTION = APP_ENV == 'production'
-SQLALCHEMY_DATABASE_URI = os.environ.get(
-    'SQLALCHEMY_DATABASE_URI',
-    f'sqlite:///{os.path.join(BASE_DIR, "app.db")}'
-)
+
+
+def _default_database_uri():
+    database_url = os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL')
+    if database_url:
+        if database_url.startswith('postgres://'):
+            return database_url.replace('postgres://', 'postgresql+psycopg2://', 1)
+        return database_url
+
+    postgres_user = os.environ.get('POSTGRES_USER', 'medienscouts')
+    postgres_password = os.environ.get('POSTGRES_PASSWORD', 'medienscouts')
+    postgres_host = os.environ.get('POSTGRES_HOST', 'localhost')
+    postgres_port = os.environ.get('POSTGRES_PORT', '5432')
+    postgres_db = os.environ.get('POSTGRES_DB', 'medienscouts')
+    return (
+        f'postgresql+psycopg2://{postgres_user}:{postgres_password}'
+        f'@{postgres_host}:{postgres_port}/{postgres_db}'
+    )
+
+
+SQLALCHEMY_DATABASE_URI = _default_database_uri()
 SQLALCHEMY_TRACK_MODIFICATIONS = False
+SQLALCHEMY_ENGINE_OPTIONS = {
+    'pool_pre_ping': True,
+}
+
+RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'redis://localhost:6379/1')
 
 PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
 WTF_CSRF_ENABLED = True

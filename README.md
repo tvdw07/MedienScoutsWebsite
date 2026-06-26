@@ -11,8 +11,8 @@ A comprehensive ticketing system with multiple ticket types and user management.
 
 ## Installation
 
-The project install instructions are based on Ubuntu 22.04, but SQLite is now used as the default database (no extra DB
-setup required).
+The project install instructions are based on Ubuntu 22.04, but PostgreSQL is now used as the default database.
+Redis is used for rate limiting.
 
 ### Step 1: Update the system to the newest version
 
@@ -68,7 +68,8 @@ nano .env
 
 ### Step 8: Datenbank initialisieren
 
-Execute the following script to create the SQLite database and tables:
+Make sure PostgreSQL and Redis are running, then execute the following script to create the database tables and apply
+migrations:
 
 ```bash
 python setup_db.py
@@ -99,7 +100,7 @@ docker compose up --build
 ```
 
 The container runs `python setup_db.py` before starting Gunicorn on port `8000`.
-SQLite data is stored in the `app_data` volume, uploads in the `app_uploads` volume.
+PostgreSQL data is stored in the `postgres_data` volume, uploads in the `app_uploads` volume.
 For production behind HTTPS, set:
 
 ```env
@@ -108,7 +109,8 @@ FORCE_HTTPS=true
 SESSION_COOKIE_SECURE=true
 ```
 
-PostgreSQL can be added later by changing `SQLALCHEMY_DATABASE_URI` and adding a database service.
+PostgreSQL and Redis are started as part of the compose stack. For local development without Docker, point
+`DATABASE_URL` and `RATELIMIT_STORAGE_URI` at running services.
 
 ### Step 10: Complete Setup Individually
 

@@ -11,6 +11,7 @@ from sqlalchemy import text
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from concurrent_log_handler import ConcurrentRotatingFileHandler
+from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import db, User, ProblemTicket, ProblemTicketUser, TicketHistory, TrainingTicket, TrainingTicketUser, \
     MiscTicket, MiscTicketUser
 import config
@@ -19,6 +20,7 @@ import atexit
 
 def create_app():
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
     migrate = Migrate(app, db)
 
     # Logging
@@ -100,7 +102,8 @@ def create_app():
     limiter = Limiter(
         key_func=get_remote_address,
         app=app,
-        default_limits=["1000 per hour"]
+        default_limits=["1000 per hour"],
+        storage_uri=app.config["RATELIMIT_STORAGE_URI"],
     )
     app.logger.info("Rate limiting initialized")
 
