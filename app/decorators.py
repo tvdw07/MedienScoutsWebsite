@@ -78,7 +78,7 @@ def ticket_owner_required(f):
             return f(*args, **kwargs)
 
         ticket_id = kwargs.get('ticket_id')
-        ticket_type = request.form.get('ticket_type') or request.args.get('ticket_type')
+        ticket_type = kwargs.get('ticket_type') or request.form.get('ticket_type') or request.args.get('ticket_type')
 
         # Determine the ticket type and check if the current user is the owner
         if ticket_type == 'problem':

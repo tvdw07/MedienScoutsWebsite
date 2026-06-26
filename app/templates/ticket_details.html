@@ -32,7 +32,7 @@
                 <i class="fas fa-hand-paper"></i> Claim Ticket
             </button>
         </form>
-        {% elif ticket.status_id == 4 and current_user.is_admin %}
+        {% elif ticket.status_id == 4 and current_user.has_permission('tickets.delete') %}
         <form method="POST" action="{{ url_for('admin.delete_ticket', ticket_id=ticket.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="ticket_type" value="{{ ticket_type }}">

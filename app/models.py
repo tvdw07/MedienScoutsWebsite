@@ -63,11 +63,15 @@ class User(UserMixin, db.Model):
 
     @property
     def is_admin(self):
-        return self.role == RoleEnum.ADMIN or self.has_permission('admin.view')
+        return (
+            self.has_permission('admin.view')
+            or self.has_permission('admin.view_statistics')
+            or self.has_permission('admin.manage_settings')
+        )
 
     @property
     def is_teacher(self):
-        return self.role == RoleEnum.TEACHER or self.has_permission('tickets.assign')
+        return self.has_permission('tickets.assign')
 
     def _collect_permission_sources(self):
         if not self.active:
@@ -107,17 +111,6 @@ class User(UserMixin, db.Model):
         if not self.active:
             return set()
 
-        if self.role == RoleEnum.ADMIN:
-            effective_permissions = {
-                permission.name
-                for permission in Permission.query.all()
-                if permission.name
-            }
-            for permission_name, source_values in self._collect_permission_sources().items():
-                if 'user_deny' in source_values:
-                    effective_permissions.discard(permission_name)
-            return effective_permissions
-
         effective_permissions = set()
         for permission_name, source_values in self._collect_permission_sources().items():
             if 'user_deny' in source_values:
@@ -139,7 +132,7 @@ class User(UserMixin, db.Model):
             if any(source.startswith('role:') for source in source_values) or 'user_allow' in source_values:
                 return True
 
-        return self.role == RoleEnum.ADMIN
+        return False
 
     @property
     def user_privileges(self):

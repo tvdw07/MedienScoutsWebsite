@@ -6,13 +6,13 @@ import os
 from datetime import datetime
 from urllib.parse import urlparse, urljoin, unquote
 from PIL import Image
-from flask import jsonify, session, current_app, send_from_directory
+from flask import abort, flash, jsonify, redirect, render_template, request, session, send_from_directory, url_for, current_app
 from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from app.decorators import permission_required, ticket_owner_required
+from app.decorators import any_permission_required, permission_required, ticket_owner_required
 from app.forms import MessageForm, EditProfileForm, ChangePasswordForm
-from app.models import Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
-    MiscTicketUser, TicketHistory
+from app.models import db, Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
+    MiscTicketUser, TicketHistory, User, RoleEnum, RankEnum
 from email_tools import send_ticket_link, notify_admin, notify_client, notify_user_about_ticket_change, send_reset_email
 
 
@@ -39,23 +39,27 @@ def members():
 
 
 @bp_main.route('/ticketverwaltung')
-@login_required
+@any_permission_required(['tickets.view', 'tickets.view_all'])
 def ticket_verwaltung():
-    """Übersicht über offene Tickets und eigene Tickets des Nutzers"""
-    # Offene Tickets abrufen
-    open_problem_tickets = ProblemTicket.query.filter_by(status_id=1).all()
-    open_training_tickets = TrainingTicket.query.filter_by(status_id=1).all()
-    open_misc_tickets = MiscTicket.query.filter_by(status_id=1).all()
+    """?bersicht ?ber offene Tickets und eigene Tickets des Nutzers"""
+    can_view_all_tickets = current_user.has_permission('tickets.view_all')
 
-    # Ticket-Typ hinzufügen
-    for ticket in open_problem_tickets:
-        ticket.type = 'problem'
-    for ticket in open_training_tickets:
-        ticket.type = 'training'
-    for ticket in open_misc_tickets:
-        ticket.type = 'misc'
+    if can_view_all_tickets:
+        open_problem_tickets = ProblemTicket.query.filter_by(status_id=1).all()
+        open_training_tickets = TrainingTicket.query.filter_by(status_id=1).all()
+        open_misc_tickets = MiscTicket.query.filter_by(status_id=1).all()
 
-    # Eigene, nicht abgeschlossene Tickets abrufen
+        for ticket in open_problem_tickets:
+            ticket.type = 'problem'
+        for ticket in open_training_tickets:
+            ticket.type = 'training'
+        for ticket in open_misc_tickets:
+            ticket.type = 'misc'
+    else:
+        open_problem_tickets = []
+        open_training_tickets = []
+        open_misc_tickets = []
+
     my_problem_tickets = ProblemTicket.query.join(ProblemTicketUser).filter(
         ProblemTicketUser.user_id == current_user.id, ProblemTicket.status_id != 4).all()
     my_training_tickets = TrainingTicket.query.join(TrainingTicketUser).filter(
@@ -63,7 +67,6 @@ def ticket_verwaltung():
     my_misc_tickets = MiscTicket.query.join(MiscTicketUser).filter(
         MiscTicketUser.user_id == current_user.id, MiscTicket.status_id != 4).all()
 
-    # Ticket-Typ hinzufügen
     for ticket in my_problem_tickets:
         ticket.type = 'problem'
     for ticket in my_training_tickets:
@@ -72,18 +75,26 @@ def ticket_verwaltung():
         ticket.type = 'misc'
 
     my_tickets = my_problem_tickets + my_training_tickets + my_misc_tickets
-    total_open_tickets = len(open_problem_tickets) + len(open_training_tickets) + len(open_misc_tickets)
+    total_open_tickets = (
+        len(open_problem_tickets) + len(open_training_tickets) + len(open_misc_tickets)
+        if can_view_all_tickets
+        else 0
+    )
 
-    return render_template('ticketverwaltung.html',
-                           open_problem_tickets=open_problem_tickets,
-                           open_training_tickets=open_training_tickets,
-                           open_misc_tickets=open_misc_tickets,
-                           my_tickets=my_tickets,
-                           total_open_tickets=total_open_tickets)
+    return render_template(
+        'ticketverwaltung.html',
+        open_problem_tickets=open_problem_tickets,
+        open_training_tickets=open_training_tickets,
+        open_misc_tickets=open_misc_tickets,
+        my_tickets=my_tickets,
+        total_open_tickets=total_open_tickets,
+        can_view_all_tickets=can_view_all_tickets,
+    )
 
 
 @bp_main.route('/ticket/<string:ticket_type>/<int:ticket_id>/details')
-@login_required
+@any_permission_required(['tickets.view', 'tickets.view_all'])
+@ticket_owner_required
 def ticket_details(ticket_type, ticket_id):
     """Zeigt die Details eines bestimmten Tickets an"""
     ticket = None
@@ -94,7 +105,7 @@ def ticket_details(ticket_type, ticket_id):
     elif ticket_type == 'misc':
         ticket = MiscTicket.query.get(ticket_id)
     else:
-        flash('Ungültiger Ticket-Typ.', 'danger')
+        flash('Ung?ltiger Ticket-Typ.', 'danger')
         return redirect(url_for('main.ticket_verwaltung'))
 
     if not ticket:
@@ -372,7 +383,7 @@ def logout():
 def forum():
     form = MessageForm()
     if form.validate_on_submit():
-        role = 'Admin' if current_user.is_admin else 'Member'
+        role = 'Admin' if current_user.has_permission('admin.view') or current_user.has_permission('admin.view_statistics') or current_user.has_permission('admin.manage_settings') else 'Member'
         message = Message(author=current_user.username, role=role, content=form.content.data)
         db.session.add(message)
         db.session.commit()
@@ -398,7 +409,7 @@ def load_more_messages(page):
             'deleted': message.deleted
         } for message in messages.items],
         'more_messages': messages.has_next,
-        'is_admin': current_user.is_admin
+        'can_delete_messages': current_user.has_permission('admin.manage_settings')
     })
 
 
@@ -408,26 +419,19 @@ def privacy_policy():
 
 
 @bp_main.route('/archiv')
-@login_required
+@permission_required('tickets.archive')
 def archiv():
     """
     Displays the archive of solved tickets.
     """
-    # Retrieve all solved tickets by type
     solved_problem_tickets = ProblemTicket.query.filter_by(status_id=4).all()
     solved_training_tickets = TrainingTicket.query.filter_by(status_id=4).all()
     solved_misc_tickets = MiscTicket.query.filter_by(status_id=4).all()
 
-    # Render the archive template with the solved tickets
     return render_template('archiv.html',
                            solved_problem_tickets=solved_problem_tickets,
                            solved_training_tickets=solved_training_tickets,
                            solved_misc_tickets=solved_misc_tickets)
-
-
-from flask import render_template, request, redirect, url_for, flash
-from flask_login import login_required
-from app.models import User, db, RoleEnum, RankEnum
 
 
 @bp_main.route('/impressum')
@@ -503,53 +507,44 @@ def get_date_time():
 
 
 @bp_main.route('/profile', methods=['GET', 'POST'])
-@login_required
+@permission_required('profile.view')
 def profile():
     form = EditProfileForm(obj=current_user)
     password_form = ChangePasswordForm()
 
     if form.validate_on_submit():
-        # Ensure the upload folder exists
+        if not current_user.has_permission('profile.edit'):
+            abort(403)
+
         upload_folder = os.path.join(current_app.root_path, current_app.config['USER_PROFILES'])
         if not os.path.exists(upload_folder):
             os.makedirs(upload_folder)
-        # Ermitteln Sie den absoluten, kanonischen Pfad des Upload-Ordners
         upload_folder_real = os.path.realpath(upload_folder)
 
-        # -----------------------
-        # 1. Profilbild-Upload
-        # -----------------------
         if form.profile_image.data:
-            # Ursprünglichen Dateinamen sichern
             original_filename = secure_filename(form.profile_image.data.filename)
-            # Auch Benutzereingaben sanitizen
             safe_first_name = secure_filename(current_user.first_name)
             safe_last_name = secure_filename(current_user.last_name)
-            # Erstelle neuen Dateinamen, z. B. "Tim_Mueller.jpg"
             new_filename = f"{safe_first_name}_{safe_last_name}{os.path.splitext(original_filename)[1]}"
             new_filename = new_filename.replace(' ', '_')
 
-            # Erzeuge den vollständigen Dateipfad
             full_path = os.path.normpath(os.path.join(upload_folder, new_filename))
             full_path_real = os.path.realpath(full_path)
-            # Validierung: Prüfen, ob der Dateipfad innerhalb des Upload-Ordners liegt
             if os.path.commonpath([upload_folder_real, full_path_real]) != upload_folder_real:
                 current_app.logger.error('Invalid profile image upload path')
                 flash('Error saving profile image due to invalid file path.', 'danger')
                 return redirect(url_for('main.profile'))
 
             try:
-                # Datei speichern
                 form.profile_image.data.save(full_path)
             except Exception as e:
                 current_app.logger.error(f"Error saving profile image: {e}")
                 flash('Error saving profile image.', 'danger')
                 return redirect(url_for('main.profile'))
 
-            # Bild bearbeiten (z.B. verkleinern)
             try:
                 with Image.open(full_path) as img:
-                    img.thumbnail((800, 800))  # Maximale Größe 800x800 Pixel
+                    img.thumbnail((800, 800))
                     img.save(full_path)
             except Exception as e:
                 current_app.logger.error(f"Error processing image: {e}")
@@ -558,9 +553,6 @@ def profile():
 
             current_user.profile_picture = new_filename
 
-        # ---------------------------
-        # 2. Profilbild löschen
-        # ---------------------------
         if form.delete_image.data:
             first_name = secure_filename(current_user.first_name)
             last_name = secure_filename(current_user.last_name)
@@ -570,7 +562,6 @@ def profile():
             full_name = f"{first_name_decoded} {last_name_decoded}"
             current_full_name = f"{current_user.first_name.strip()} {current_user.last_name.strip()}"
 
-            # Authorization check: Only the current user can access their profile picture
             if full_name != current_full_name:
                 flash('You are not allowed to access this profile picture.', 'danger')
                 current_app.logger.warning(f'Unauthorized profile image access attempt by user_id={current_user.id}')
@@ -581,7 +572,6 @@ def profile():
             upload_folder = os.path.join(current_app.root_path, current_app.config['USER_PROFILES'])
             upload_folder_real = os.path.realpath(upload_folder)
 
-            # Check for different possible extensions
             photo_filename = None
             for ext in ['.png', '.jpg', '.jpeg']:
                 filename = f"{safe_first}_{safe_last}{ext}"
@@ -596,7 +586,6 @@ def profile():
                 current_app.logger.info('Profile picture not found')
                 return redirect(url_for('main.profile'))
 
-            # Validation: Ensure the file path is within the upload folder
             if os.path.commonpath([upload_folder_real, file_path_real]) != upload_folder_real:
                 flash('Invalid file path.', 'danger')
                 current_app.logger.warning(f'Invalid profile image path access attempt by user_id={current_user.id}')
@@ -606,9 +595,6 @@ def profile():
             os.remove(file_path_real)
             return redirect(url_for('main.profile'))
 
-        # ---------------------------
-        # 3. Benutzerinformationen aktualisieren
-        # ---------------------------
         current_user.first_name = form.first_name.data
         current_user.last_name = form.last_name.data
         current_user.email = form.email.data
@@ -620,28 +606,22 @@ def profile():
 
 
 @bp_main.route('/profile_picture/<first_name>_<last_name>')
-@login_required
+@permission_required('profile.view')
 def profile_picture(first_name, last_name):
-    # Decode the URL parameters: Replace underscores with spaces
     first_name_decoded = unquote(first_name).replace('_', ' ').strip()
     last_name_decoded = unquote(last_name).replace('_', ' ').strip()
     full_name = f"{first_name_decoded} {last_name_decoded}"
     current_full_name = f"{current_user.first_name.strip()} {current_user.last_name.strip()}"
 
-    # Authorization check: Only the current user can access their profile picture
     if full_name != current_full_name:
         flash('You are not allowed to access this profile picture.', 'danger')
         current_app.logger.warning(f'Unauthorized profile image access attempt by user_id={current_user.id}')
         return redirect(url_for('main.profile'))
 
-    # Try to load the filename from the database field 'photo'
-    # If not set, generate the filename based on the user's data
     photo_filename = getattr(current_user, 'photo', None)
     if not photo_filename:
-        # Generate the filename based on user data
         safe_first = secure_filename(current_user.first_name)
         safe_last = secure_filename(current_user.last_name)
-        # Check for different possible extensions
         for ext in ['.png', '.jpg', '.jpeg']:
             photo_filename = f"{safe_first}_{safe_last}{ext}"
             file_path = os.path.join(current_app.root_path, current_app.config['USER_PROFILES'], photo_filename)
@@ -654,19 +634,16 @@ def profile_picture(first_name, last_name):
         current_app.logger.info("No photo stored in DB; using default profile image.")
         return send_from_directory(current_app.static_folder, 'images/default_profile.png')
 
-    # Generate the absolute path to the upload folder and the image file
     upload_folder = os.path.join(current_app.root_path, current_app.config['USER_PROFILES'])
     upload_folder_real = os.path.realpath(upload_folder)
     file_path = os.path.normpath(os.path.join(upload_folder, photo_filename))
     file_path_real = os.path.realpath(file_path)
 
-    # Validation: Ensure the file path is within the upload folder
     if os.path.commonpath([upload_folder_real, file_path_real]) != upload_folder_real:
         flash('Invalid file path.', 'danger')
         current_app.logger.warning(f'Invalid profile image path access attempt by user_id={current_user.id}')
         return redirect(url_for('main.profile'))
 
-    # Serve the profile picture if it exists, otherwise serve the default image
     if os.path.exists(file_path_real):
         current_app.logger.info('Profile picture found, serving the file.')
         return send_from_directory(upload_folder_real, photo_filename)
@@ -676,14 +653,13 @@ def profile_picture(first_name, last_name):
 
 
 @bp_main.route('/send_password_reset_email', methods=['POST'])
-@login_required
+@permission_required('profile.edit')
 def send_password_reset_email():
     """
     Sends a password reset email to the current user.
     """
     user = current_user
     if user:
-        # Send the password reset email
         send_reset_email(user)
         flash('Password reset instructions have been sent to your email.', 'info')
     else:

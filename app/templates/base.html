@@ -29,20 +29,28 @@
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('main.send_ticket') }}">Send Ticket</a>
                     </li>
                     {% if current_user.is_authenticated %}
+                    {% if current_user.has_permission('tickets.view') or current_user.has_permission('tickets.view_all') %}
                     <li class="nav-item"><a class="nav-link"
                                             href="{{ url_for('main.ticket_verwaltung') }}">Ticketverwaltung</a></li>
+                    {% endif %}
+                    {% if current_user.has_permission('tickets.archive') %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('main.archiv') }}">Archiv</a></li>
+                    {% endif %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('main.forum') }}">Forum</a></li>
-                    {% if current_user.is_admin %}
+                    {% if current_user.has_permission('admin.view') or current_user.has_permission('admin.view_statistics') or current_user.has_permission('admin.manage_settings') %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button"
                            data-bs-toggle="dropdown" aria-expanded="false">
                             Admin
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            {% if current_user.has_permission('admin.view_statistics') %}
                             <li><a class="dropdown-item" href="{{ url_for('admin.admin_panel') }}">Admin Panel</a></li>
+                            {% endif %}
+                            {% if current_user.has_permission('users.view') %}
                             <li><a class="dropdown-item" href="{{ url_for('admin.members_administration') }}">Member
                                 Management</a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     {% endif %}
@@ -50,7 +58,9 @@
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
+                    {% if current_user.has_permission('profile.view') %}
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('main.profile') }}">Profile</a></li>
+                    {% endif %}
                     <li class="nav-item"><a class="nav-link btn btn-outline-light"
                                             href="{{ url_for('main.logout') }}">Logout</a></li>
                     {% else %}

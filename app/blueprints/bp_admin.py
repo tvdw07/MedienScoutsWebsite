@@ -3,14 +3,14 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
 from app.models import db, ProblemTicket, TrainingTicket, MiscTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, User, RoleEnum, RankEnum, Message, TicketHistory, Privilege, UserPrivilege
-from app.decorators import admin_required
+from app.decorators import permission_required
 from app.routes import get_date_time
 
 bp_admin = Blueprint('admin', __name__)
 
 
 @bp_admin.route('/admin/panel')
-@admin_required
+@permission_required('admin.view_statistics')
 def admin_panel():
     # Calculate statistics
     six_months_ago = datetime.now() - timedelta(days=6 * 30)
@@ -68,7 +68,7 @@ def admin_panel():
 
 
 @bp_admin.route('/members/administration', methods=['GET', 'POST'])
-@admin_required
+@permission_required('users.view')
 def members_administration():
     if request.method == 'POST':
         if 'create_user' in request.form:
@@ -129,7 +129,7 @@ def members_administration():
 
 
 @bp_admin.route('/members/user/<int:user_id>', methods=['GET', 'POST'])
-@admin_required
+@permission_required('users.view')
 def user_detail(user_id):
     if request.method == 'GET':
         # Load all privileges from the database
@@ -206,7 +206,7 @@ def user_detail(user_id):
 
 
 @bp_admin.route('/members/user', methods=['POST'])
-@admin_required
+@permission_required('users.create')
 def create_user():
     data = request.json
     new_user = User(
@@ -235,7 +235,7 @@ def create_user():
 
 
 @bp_admin.route('/delete_message/<int:message_id>', methods=['POST'])
-@admin_required
+@permission_required('admin.manage_settings')
 def delete_message(message_id):
     message = Message.query.get(message_id)
     if message:
@@ -250,7 +250,7 @@ def delete_message(message_id):
 
 # app/routes.py
 @bp_admin.route('/ticket/<int:ticket_id>/delete', methods=['POST'])
-@admin_required
+@permission_required('tickets.delete')
 def delete_ticket(ticket_id):
     ticket_type = request.form.get('ticket_type')
     if ticket_type == 'problem':

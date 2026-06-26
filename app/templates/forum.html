@@ -23,7 +23,7 @@
                         <p class="card-text">{{ message.content }}</p>
                         <p class="card-text"><small class="text-muted">{{ message.timestamp }}</small></p>
                     </div>
-                    {% if current_user.is_admin and not message.deleted %}
+                    {% if current_user.has_permission('admin.manage_settings') and not message.deleted %}
                         <button class="btn btn-danger btn-sm delete-message" data-id="{{ message.id }}">Delete</button>
                     {% endif %}
                 </div>
@@ -84,7 +84,7 @@
                             <p class="card-text">${message.content}</p>
                             <p class="card-text"><small class="text-muted">${message.timestamp}</small></p>
                         </div>
-                        ${data.is_admin && !message.deleted ? `<button class="btn btn-danger btn-sm delete-message" data-id="${message.id}">Delete</button>` : ''}
+                        ${data.can_delete_messages && !message.deleted ? `<button class="btn btn-danger btn-sm delete-message" data-id="${message.id}">Delete</button>` : ''}
                     </div>
                 `;
                 messagesDiv.appendChild(messageCard);
