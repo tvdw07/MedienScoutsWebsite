@@ -1,237 +1,369 @@
 from datetime import datetime, timedelta
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for, jsonify, current_app
-from app.models import db, ProblemTicket, TrainingTicket, MiscTicket, ProblemTicketUser, TrainingTicketUser, \
-    MiscTicketUser, User, RoleEnum, RankEnum, Message, TicketHistory, Privilege, UserPrivilege
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user
+
 from app.decorators import permission_required
+from app.models import (
+    db,
+    Message,
+    MiscTicket,
+    MiscTicketUser,
+    Permission,
+    ProblemTicket,
+    ProblemTicketUser,
+    RankEnum,
+    Role,
+    RoleEnum,
+    TicketHistory,
+    TrainingTicket,
+    TrainingTicketUser,
+    User,
+    UserPermissionOverride,
+)
 from app.routes import get_date_time
 
 bp_admin = Blueprint('admin', __name__)
+
+LEGACY_ROLE_TO_STANDARD_ROLE_NAME = {
+    RoleEnum.ADMIN.value: 'Admin',
+    RoleEnum.TEACHER.value: 'Teacher',
+    RoleEnum.MEMBER.value: 'User',
+}
+
+
+def _to_iso(value):
+    return value.isoformat() if value else None
+
+
+def _serialize_role(role):
+    return {
+        'id': role.id,
+        'name': role.name,
+        'description': role.description,
+        'is_system_role': role.is_system_role,
+    }
+
+
+def _serialize_permission(permission, source_values, is_effective):
+    return {
+        'id': permission.id,
+        'name': permission.name,
+        'description': permission.description,
+        'sources': list(source_values),
+        'effective': is_effective,
+        'denied': 'user_deny' in source_values,
+        'has_override': 'user_allow' in source_values or 'user_deny' in source_values,
+    }
+
+
+def _build_user_detail_payload(user):
+    permissions = Permission.query.order_by(Permission.name).all()
+    all_roles = Role.query.order_by(Role.name).all()
+
+    if user is None:
+        active_roles = []
+        available_roles = all_roles
+        permission_sources = {}
+        effective_permissions = set()
+        user_data = {
+            'id': 0,
+            'username': '',
+            'first_name': '',
+            'last_name': '',
+            'full_name': '',
+            'email': '',
+            'role': '',
+            'rank': '',
+            'active': True,
+            'active_from': None,
+            'active_until': None,
+            'last_login': None,
+        }
+    else:
+        active_roles = sorted(user.roles, key=lambda role: role.name.lower())
+        active_role_ids = {role.id for role in active_roles}
+        available_roles = [role for role in all_roles if role.id not in active_role_ids]
+        permission_sources = user.get_permission_sources()
+        effective_permissions = user.get_effective_permissions()
+        user_data = {
+            'id': user.id,
+            'username': user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'full_name': f'{user.first_name} {user.last_name}'.strip() or user.username,
+            'email': user.email,
+            'role': user.role.value if user.role else '',
+            'rank': user.rank.value if user.rank else '',
+            'active': user.active,
+            'active_from': _to_iso(user.active_from),
+            'active_until': _to_iso(user.active_until),
+            'last_login': _to_iso(user.last_login),
+        }
+
+    permission_rows = []
+    for permission in permissions:
+        source_values = permission_sources.get(permission.name, [])
+        permission_rows.append(
+            _serialize_permission(permission, source_values, permission.name in effective_permissions)
+        )
+
+    return {
+        'user': user_data,
+        'active_roles': [_serialize_role(role) for role in active_roles],
+        'available_roles': [_serialize_role(role) for role in available_roles],
+        'permissions': permission_rows,
+        'effective_permissions': sorted(effective_permissions),
+        'permission_sources': permission_sources,
+        'capabilities': {
+            'can_manage_roles': current_user.has_permission('users.manage_roles'),
+            'can_manage_permissions': current_user.has_permission('users.manage_permissions'),
+            'can_create_users': current_user.has_permission('users.create'),
+        },
+    }
 
 
 @bp_admin.route('/admin/panel')
 @permission_required('admin.view_statistics')
 def admin_panel():
-    # Calculate statistics
     six_months_ago = datetime.now() - timedelta(days=6 * 30)
     total_tickets = (
-            db.session.query(ProblemTicket).filter(ProblemTicket.created_at >= six_months_ago).count() +
-            db.session.query(TrainingTicket).filter(TrainingTicket.created_at >= six_months_ago).count() +
-            db.session.query(MiscTicket).filter(MiscTicket.created_at >= six_months_ago).count()
+        db.session.query(ProblemTicket).filter(ProblemTicket.created_at >= six_months_ago).count()
+        + db.session.query(TrainingTicket).filter(TrainingTicket.created_at >= six_months_ago).count()
+        + db.session.query(MiscTicket).filter(MiscTicket.created_at >= six_months_ago).count()
     )
     solved_tickets = (
-            db.session.query(ProblemTicket).filter(ProblemTicket.created_at >= six_months_ago,
-                                                   ProblemTicket.status_id == 4).count() +
-            db.session.query(TrainingTicket).filter(TrainingTicket.created_at >= six_months_ago,
-                                                    TrainingTicket.status_id == 4).count() +
-            db.session.query(MiscTicket).filter(MiscTicket.created_at >= six_months_ago,
-                                                MiscTicket.status_id == 4).count()
+        db.session.query(ProblemTicket)
+        .filter(ProblemTicket.created_at >= six_months_ago, ProblemTicket.status_id == 4)
+        .count()
+        + db.session.query(TrainingTicket)
+        .filter(TrainingTicket.created_at >= six_months_ago, TrainingTicket.status_id == 4)
+        .count()
+        + db.session.query(MiscTicket)
+        .filter(MiscTicket.created_at >= six_months_ago, MiscTicket.status_id == 4)
+        .count()
     )
 
-    # Aliases for subqueries
     problem_ticket_count = db.session.query(
         ProblemTicketUser.user_id,
-        db.func.count(ProblemTicketUser.problem_ticket_id).label('problem_count')
+        db.func.count(ProblemTicketUser.problem_ticket_id).label('problem_count'),
     ).join(ProblemTicket, ProblemTicket.id == ProblemTicketUser.problem_ticket_id).filter(
         ProblemTicket.status_id == 4
     ).group_by(ProblemTicketUser.user_id).subquery()
 
     training_ticket_count = db.session.query(
         TrainingTicketUser.user_id,
-        db.func.count(TrainingTicketUser.training_ticket_id).label('training_count')
+        db.func.count(TrainingTicketUser.training_ticket_id).label('training_count'),
     ).join(TrainingTicket, TrainingTicket.id == TrainingTicketUser.training_ticket_id).filter(
         TrainingTicket.status_id == 4
     ).group_by(TrainingTicketUser.user_id).subquery()
 
     misc_ticket_count = db.session.query(
         MiscTicketUser.user_id,
-        db.func.count(MiscTicketUser.misc_ticket_id).label('misc_count')
+        db.func.count(MiscTicketUser.misc_ticket_id).label('misc_count'),
     ).join(MiscTicket, MiscTicket.id == MiscTicketUser.misc_ticket_id).filter(
         MiscTicket.status_id == 4
     ).group_by(MiscTicketUser.user_id).subquery()
 
-    # User statistics
     user_stats = db.session.query(
         User.first_name,
         User.last_name,
         db.func.coalesce(problem_ticket_count.c.problem_count, 0).label('problem_count'),
         db.func.coalesce(training_ticket_count.c.training_count, 0).label('training_count'),
-        db.func.coalesce(misc_ticket_count.c.misc_count, 0).label('misc_count')
+        db.func.coalesce(misc_ticket_count.c.misc_count, 0).label('misc_count'),
     ).outerjoin(problem_ticket_count, problem_ticket_count.c.user_id == User.id).outerjoin(
-        training_ticket_count, training_ticket_count.c.user_id == User.id).outerjoin(
-        misc_ticket_count, misc_ticket_count.c.user_id == User.id).all()
+        training_ticket_count, training_ticket_count.c.user_id == User.id
+    ).outerjoin(
+        misc_ticket_count, misc_ticket_count.c.user_id == User.id
+    ).all()
 
-    return render_template('admin/admin_panel.html',
-                           total_tickets=total_tickets,
-                           solved_tickets=solved_tickets,
-                           user_stats=user_stats)
+    return render_template(
+        'admin/admin_panel.html',
+        total_tickets=total_tickets,
+        solved_tickets=solved_tickets,
+        user_stats=user_stats,
+    )
 
 
-@bp_admin.route('/members/administration', methods=['GET', 'POST'])
+@bp_admin.route('/members/administration')
 @permission_required('users.view')
 def members_administration():
-    if request.method == 'POST':
-        if 'create_user' in request.form:
-            new_user = User(
-                username=request.form.get('new_username'),
-                first_name=request.form.get('new_first_name'),
-                last_name=request.form.get('new_last_name'),
-                email=request.form.get('new_email'),
-                role=request.form.get('new_role'),
-                rank=request.form.get('new_rank'),
-                active=True,
-                active_from=datetime.now()
-            )
-            new_user.password_hash = ''  # Set no password for new user
-            db.session.add(new_user)
-            db.session.commit()
-            current_app.logger.info(f'New user created: user_id={new_user.id}')
-            flash('New user created successfully.', 'success')
-        else:
-            user_id = request.form.get('user_id')
-            user = User.query.get(user_id)
-            if user:
-                if 'reset_password' in request.form:
-                    user.password_hash = ''  # Reset password
-                    current_app.logger.info(f'Password reset for user_id={user.id}')
-                    flash('Password has been reset successfully.', 'success')
-                else:
-                    user.username = request.form.get('username')
-                    user.first_name = request.form.get('first_name')
-                    user.last_name = request.form.get('last_name')
-                    user.email = request.form.get('email')
-                    user.role = request.form.get('role')
-                    user.rank = request.form.get('rank')
-                    if 'set_inactive' in request.form:
-                        user.active = False
-                        user.active_until = datetime.now()
-                        current_app.logger.info(f'User deactivated: user_id={user.id}')
-                    elif 'set_active' in request.form:
-                        user.active = True
-                        user.active_until = None
-                        current_app.logger.info(f'User activated: user_id={user.id}')
-                    new_password = request.form.get('new_password')
-                    if new_password:
-                        user.set_password(new_password)
-                        current_app.logger.info(f'Password changed for user_id={user.id}')
-                db.session.commit()
-                current_app.logger.info(f'User updated: user_id={user.id}')
-                flash('User updated successfully.', 'success')
-            else:
-                current_app.logger.error(f'User not found: {user_id}')
-                flash('User not found.', 'danger')
-        return redirect(url_for('admin.members_administration'))
-
-    active_users = User.query.filter_by(active=True).all()
-    inactive_users = User.query.filter_by(active=False).all()
-    return render_template('admin/members_administration.html', active_users=active_users,
-                           inactive_users=inactive_users, roles=RoleEnum, ranks=RankEnum)
+    active_users = User.query.filter_by(active=True).order_by(User.last_name, User.first_name, User.username).all()
+    inactive_users = User.query.filter_by(active=False).order_by(User.last_name, User.first_name, User.username).all()
+    return render_template(
+        'admin/members_administration.html',
+        active_users=active_users,
+        inactive_users=inactive_users,
+    )
 
 
-@bp_admin.route('/members/user/<int:user_id>', methods=['GET', 'POST'])
+@bp_admin.route('/members/user/<int:user_id>', methods=['GET'])
 @permission_required('users.view')
 def user_detail(user_id):
-    if request.method == 'GET':
-        # Load all privileges from the database
-        privileges = Privilege.query.all()
-        privileges_data = [{'id': p.id, 'name': p.name} for p in privileges]
+    if user_id == 0:
+        return jsonify(_build_user_detail_payload(None))
 
-        if user_id == 0:
-            # New user: return an empty structure plus privileges
-            return jsonify({
-                'user': {
-                    'id': 0,
-                    'username': '',
-                    'first_name': '',
-                    'last_name': '',
-                    'email': '',
-                    'role': '',
-                    'rank': '',
-                    'active': True
-                },
-                'user_privileges': [],
-                'all_privileges': privileges_data
-            })
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
 
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+    return jsonify(_build_user_detail_payload(user))
 
-        user_data = {
-            'id': user.id,
-            'username': user.username,
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email,
-            'role': user.role.value,
-            'rank': user.rank.value if user.rank else '',
-            'active': user.active,
-        }
-        user_privileges = [up.privilege_id for up in user.user_privileges]
-        return jsonify({
-            'user': user_data,
-            'user_privileges': user_privileges,
-            'all_privileges': privileges_data
-        })
 
-    elif request.method == 'POST':
-        # Save updates for an existing user
-        data = request.json
-        user = User.query.get(user_id)
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
+@bp_admin.route('/members/user/<int:user_id>/roles', methods=['POST'])
+@permission_required('users.manage_roles')
+def update_user_roles(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
 
-        user.username = data.get('username')
-        user.first_name = data.get('first_name')
-        user.last_name = data.get('last_name')
-        user.email = data.get('email')
-        user.role = RoleEnum(data.get('role'))
-        user.rank = RankEnum(data.get('rank'))
-        user.active = data.get('active', True)
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    role_id = data.get('role_id')
 
-        new_password = data.get('new_password')
-        if new_password:
-            user.set_password(new_password)
+    if action not in {'add', 'remove'}:
+        return jsonify({'error': 'Invalid action'}), 400
+    if role_id is None:
+        return jsonify({'error': 'role_id is required'}), 400
 
-        # Update privileges: remove existing ones and add new ones
-        new_privs = data.get('privileges', [])
-        UserPrivilege.query.filter_by(user_id=user.id).delete()
-        for priv_id in new_privs:
-            user_priv = UserPrivilege(user_id=user.id, privilege_id=priv_id)
-            db.session.add(user_priv)
+    role = db.session.get(Role, int(role_id))
+    if not role:
+        return jsonify({'error': 'Role not found'}), 404
 
+    changed = False
+    if action == 'add' and role not in user.roles:
+        user.roles.append(role)
+        changed = True
+    elif action == 'remove' and role in user.roles:
+        user.roles.remove(role)
+        changed = True
+
+    if changed:
         db.session.commit()
-        flash('User updated successfully.', 'success')
-        return jsonify({'message': 'User updated successfully'})
+
+    payload = _build_user_detail_payload(user)
+    payload['message'] = f"Role {role.name} {'added' if action == 'add' else 'removed'}."
+    return jsonify(payload)
+
+
+@bp_admin.route('/members/user/<int:user_id>/permissions', methods=['POST'])
+@permission_required('users.manage_permissions')
+def update_user_permissions(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    permission_id = data.get('permission_id')
+    reason = data.get('reason') or None
+
+    if action not in {'allow', 'deny', 'remove'}:
+        return jsonify({'error': 'Invalid action'}), 400
+    if permission_id is None:
+        return jsonify({'error': 'permission_id is required'}), 400
+
+    permission = db.session.get(Permission, int(permission_id))
+    if not permission:
+        return jsonify({'error': 'Permission not found'}), 404
+
+    existing_override = next(
+        (override for override in user.permission_overrides if override.permission_id == permission.id),
+        None,
+    )
+
+    changed = False
+    if action in {'allow', 'deny'}:
+        allowed = action == 'allow'
+        if existing_override:
+            if existing_override.allowed != allowed or existing_override.reason != reason:
+                existing_override.allowed = allowed
+                existing_override.reason = reason
+                changed = True
+        else:
+            user.permission_overrides.append(
+                UserPermissionOverride(permission=permission, allowed=allowed, reason=reason)
+            )
+            changed = True
+    elif existing_override:
+        db.session.delete(existing_override)
+        changed = True
+
+    if changed:
+        db.session.commit()
+
+    payload = _build_user_detail_payload(user)
+    if action == 'allow':
+        payload['message'] = f'Permission {permission.name} allowed.'
+    elif action == 'deny':
+        payload['message'] = f'Permission {permission.name} denied.'
+    else:
+        payload['message'] = f'Permission override for {permission.name} removed.'
+    return jsonify(payload)
 
 
 @bp_admin.route('/members/user', methods=['POST'])
 @permission_required('users.create')
 def create_user():
-    data = request.json
+    data = request.get_json(silent=True) or {}
+
+    role_value = data.get('role') or RoleEnum.MEMBER.value
+    rank_value = data.get('rank') or RankEnum.KEIN.value
+
+    try:
+        role_enum = RoleEnum(role_value)
+    except ValueError:
+        role_enum = RoleEnum.MEMBER
+
+    try:
+        rank_enum = RankEnum(rank_value)
+    except ValueError:
+        rank_enum = RankEnum.KEIN
+
     new_user = User(
         username=data.get('username'),
         first_name=data.get('first_name'),
         last_name=data.get('last_name'),
         email=data.get('email'),
-        role=RoleEnum(data.get('role')),
-        rank=RankEnum(data.get('rank')),
+        role=role_enum,
+        rank=rank_enum,
         active=True,
-        active_from=datetime.now()
+        active_from=datetime.now(),
     )
+
     password = data.get('password')
     if password:
         new_user.set_password(password)
+    else:
+        new_user.password_hash = ''
+
     db.session.add(new_user)
+
+    standard_role_name = LEGACY_ROLE_TO_STANDARD_ROLE_NAME.get(role_enum.value)
+    if standard_role_name:
+        standard_role = Role.query.filter_by(name=standard_role_name).one_or_none()
+        if standard_role:
+            new_user.roles.append(standard_role)
+
+    for permission_value in data.get('permission_ids') or data.get('privileges') or []:
+        permission = None
+        if isinstance(permission_value, int) or (
+            isinstance(permission_value, str) and permission_value.isdigit()
+        ):
+            permission = db.session.get(Permission, int(permission_value))
+        else:
+            permission = Permission.query.filter_by(name=str(permission_value)).one_or_none()
+
+        if permission and not any(override.permission_id == permission.id for override in new_user.permission_overrides):
+            new_user.permission_overrides.append(
+                UserPermissionOverride(permission=permission, allowed=True)
+            )
+
     db.session.commit()
 
-    # Assign privileges if provided
-    for priv_id in data.get('privileges', []):
-        user_priv = UserPrivilege(user_id=new_user.id, privilege_id=priv_id)
-        db.session.add(user_priv)
-    db.session.commit()
-
-    return jsonify({'message': 'User created successfully', 'user_id': new_user.id})
+    payload = _build_user_detail_payload(new_user)
+    payload['message'] = 'User created successfully.'
+    return jsonify(payload), 201
 
 
 @bp_admin.route('/delete_message/<int:message_id>', methods=['POST'])
@@ -244,11 +376,11 @@ def delete_message(message_id):
         db.session.commit()
         current_app.logger.info(f'Message deleted: {message_id}')
         return jsonify({'success': True})
+
     current_app.logger.error(f'Message not found: {message_id}')
     return jsonify({'error': 'Message not found'}), 404
 
 
-# app/routes.py
 @bp_admin.route('/ticket/<int:ticket_id>/delete', methods=['POST'])
 @permission_required('tickets.delete')
 def delete_ticket(ticket_id):

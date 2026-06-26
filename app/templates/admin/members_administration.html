@@ -4,60 +4,73 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="mb-4">Member Management</h1>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">Member Management</h1>
+            <p class="text-muted mb-0">Open a user to inspect roles, effective permissions and permission sources.</p>
+        </div>
+    </div>
 
-    <button id="createUserBtn" class="btn btn-primary mb-3">Create New User</button>
-
-    <h2>Active Members</h2>
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="activeUsersTable">
-            <thead class="thead-dark">
+    <div class="table-responsive mb-4">
+        <table class="table table-hover align-middle" id="activeUsersTable">
+            <thead class="table-light">
             <tr>
                 <th>Username</th>
-                <th>First Name</th>
-                <th>Last Name</th>
+                <th>Name</th>
                 <th>Email</th>
-                <th>Role</th>
-                <th>Rank</th>
+                <th>Status</th>
+                <th>Roles</th>
+                <th class="text-end">Action</th>
             </tr>
             </thead>
             <tbody>
             {% for user in active_users %}
-            <tr class="user-row" data-user-id="{{ user.id }}">
+            {% set role_names = user.roles | map(attribute='name') | list %}
+            <tr>
                 <td>{{ user.username }}</td>
-                <td>{{ user.first_name }}</td>
-                <td>{{ user.last_name }}</td>
+                <td>{{ user.first_name }} {{ user.last_name }}</td>
                 <td>{{ user.email }}</td>
-                <td>{{ user.role.value }}</td>
-                <td>{{ user.rank.value if user.rank else '' }}</td>
+                <td><span class="badge bg-success">Active</span></td>
+                <td>{{ role_names|join(', ') if role_names else '-' }}</td>
+                <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-primary js-user-detail"
+                            data-user-id="{{ user.id }}">
+                        <i class="fa-solid fa-user-gear me-1"></i>Details
+                    </button>
+                </td>
             </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
 
-    <h2>Inactive Members</h2>
     <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="inactiveUsersTable">
-            <thead class="thead-dark">
+        <table class="table table-hover align-middle" id="inactiveUsersTable">
+            <thead class="table-light">
             <tr>
                 <th>Username</th>
-                <th>First Name</th>
-                <th>Last Name</th>
+                <th>Name</th>
                 <th>Email</th>
-                <th>Role</th>
-                <th>Rank</th>
+                <th>Status</th>
+                <th>Roles</th>
+                <th class="text-end">Action</th>
             </tr>
             </thead>
             <tbody>
             {% for user in inactive_users %}
-            <tr class="user-row" data-user-id="{{ user.id }}">
+            {% set role_names = user.roles | map(attribute='name') | list %}
+            <tr>
                 <td>{{ user.username }}</td>
-                <td>{{ user.first_name }}</td>
-                <td>{{ user.last_name }}</td>
+                <td>{{ user.first_name }} {{ user.last_name }}</td>
                 <td>{{ user.email }}</td>
-                <td>{{ user.role.value }}</td>
-                <td>{{ user.rank.value if user.rank else '' }}</td>
+                <td><span class="badge bg-secondary">Inactive</span></td>
+                <td>{{ role_names|join(', ') if role_names else '-' }}</td>
+                <td class="text-end">
+                    <button type="button" class="btn btn-sm btn-outline-primary js-user-detail"
+                            data-user-id="{{ user.id }}">
+                        <i class="fa-solid fa-user-gear me-1"></i>Details
+                    </button>
+                </td>
             </tr>
             {% endfor %}
             </tbody>
@@ -65,216 +78,400 @@
     </div>
 </div>
 
-<!-- User Detail Modal -->
-<div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="userModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg" role="document">
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
-            <form id="userForm">
-                <div class="modal-header">
+            <div class="modal-header">
+                <div>
                     <h5 class="modal-title" id="userModalLabel">User Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <div class="text-muted small" id="userModalSubtitle"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="userDetailAlert"></div>
 
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <section class="border rounded-1 p-3 h-100">
+                            <h6 class="mb-3">Master data</h6>
+                            <dl class="row mb-0" id="userMasterData">
+                                <dt class="col-5 text-muted">Username</dt>
+                                <dd class="col-7 mb-2">-</dd>
+                                <dt class="col-5 text-muted">Name</dt>
+                                <dd class="col-7 mb-2">-</dd>
+                                <dt class="col-5 text-muted">Email</dt>
+                                <dd class="col-7 mb-2">-</dd>
+                            </dl>
+                        </section>
+                    </div>
+
+                    <div class="col-lg-8">
+                        <section class="border rounded-1 p-3 mb-4">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <h6 class="mb-0">Active roles</h6>
+                                <span class="text-muted small" id="rolePermissionHint"></span>
+                            </div>
+                            <div id="activeRolesList" class="d-flex flex-wrap gap-2"></div>
+                        </section>
+
+                        <section class="border rounded-1 p-3 mb-4">
+                            <h6 class="mb-3">Available roles</h6>
+                            <div id="availableRolesList" class="d-flex flex-wrap gap-2"></div>
+                        </section>
+
+                        <section class="border rounded-1 p-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                                <h6 class="mb-0">Effective permissions</h6>
+                                <span class="text-muted small" id="effectivePermissionsCount"></span>
+                            </div>
+
+                            <div id="permissionOverrideReasonContainer" class="row g-2 align-items-end mb-3 d-none">
+                                <div class="col-md-10">
+                                    <label for="permissionOverrideReason" class="form-label form-label-sm mb-1">Override reason</label>
+                                    <input type="text" class="form-control form-control-sm" id="permissionOverrideReason"
+                                           maxlength="255" placeholder="Optional reason for a direct permission override">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary w-100"
+                                            id="clearPermissionOverrideReason">
+                                        <i class="fa-solid fa-eraser me-1"></i>Clear
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="effectivePermissionsList" class="d-flex flex-wrap gap-2 mb-3"></div>
+
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped align-middle mb-0">
+                                    <thead class="table-light">
+                                    <tr>
+                                        <th>Permission</th>
+                                        <th>Sources</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="permissionTableBody"></tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <!-- Hidden field for user id -->
-                    <input type="hidden" id="user_id" name="user_id">
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="username">Username</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="email">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="first_name">First Name</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" required>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="last_name">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="role">Role</label>
-                            <select class="form-control" id="role" name="role" required>
-                                {% for role in roles %}
-                                <option value="{{ role.value }}">{{ role.value }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="rank">Rank</label>
-                            <select class="form-control" id="rank" name="rank" required>
-                                {% for rank in ranks %}
-                                <option value="{{ rank.value }}">{{ rank.value }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="new_password">New Password (leave blank if unchanged)</label>
-                        <input type="password" class="form-control" id="new_password" name="new_password">
-                    </div>
-                    <div class="form-group form-check">
-                        <input type="checkbox" class="form-check-input" id="active" name="active">
-                        <label class="form-check-label" for="active">Active</label>
-                    </div>
-                    <hr>
-                    <h5>Privileges</h5>
-                    <div id="privilegesContainer" class="form-group">
-                        <!-- Privilege checkboxes will be added dynamically -->
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" id="resetPasswordBtn" class="btn btn-secondary">Reset Password</button>
-                    <button type="submit" id="saveUserBtn" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fa-solid fa-xmark me-1"></i>Close
+                </button>
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
+
 {% block scripts %}
 <script>
-    // Set up global AJAX settings to include CSRF token in the header
-    $.ajaxSetup({
-      headers: {
-        'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
-      }
-    });
+(() => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const userModalElement = document.getElementById('userModal');
+    const userModal = bootstrap.Modal.getOrCreateInstance(userModalElement);
+    const userModalLabel = document.getElementById('userModalLabel');
+    const userModalSubtitle = document.getElementById('userModalSubtitle');
+    const userDetailAlert = document.getElementById('userDetailAlert');
+    const userMasterData = document.getElementById('userMasterData');
+    const activeRolesList = document.getElementById('activeRolesList');
+    const availableRolesList = document.getElementById('availableRolesList');
+    const effectivePermissionsList = document.getElementById('effectivePermissionsList');
+    const effectivePermissionsCount = document.getElementById('effectivePermissionsCount');
+    const permissionTableBody = document.getElementById('permissionTableBody');
+    const permissionReasonContainer = document.getElementById('permissionOverrideReasonContainer');
+    const permissionReasonInput = document.getElementById('permissionOverrideReason');
+    const rolePermissionHint = document.getElementById('rolePermissionHint');
 
-    $(document).ready(function() {
-      // Your existing AJAX code for handling user rows and form submissions goes here.
-      $('.user-row').click(function() {
-        var userId = $(this).data('user-id');
-        $.ajax({
-            url: "{{ url_for('admin.user_detail', user_id=0) }}".replace("0", userId),
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                var user = response.user;
-                $('#user_id').val(user.id);
-                $('#username').val(user.username);
-                $('#email').val(user.email);
-                $('#first_name').val(user.first_name);
-                $('#last_name').val(user.last_name);
-                $('#role').val(user.role);
-                $('#rank').val(user.rank);
-                $('#new_password').val('');
-                $('#active').prop('checked', user.active);
+    const escapeMap = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    };
 
-                // Build privilege checkboxes
-                var privilegesContainer = $('#privilegesContainer');
-                privilegesContainer.empty();
-                $.each(response.all_privileges, function(index, privilege) {
-                    var checked = response.user_privileges.includes(privilege.id) ? 'checked' : '';
-                    privilegesContainer.append(
-                        '<div class="form-check">' +
-                        '<input class="form-check-input" type="checkbox" value="' + privilege.id + '" id="priv_' + privilege.id + '" ' + checked + '>' +
-                        '<label class="form-check-label" for="priv_' + privilege.id + '">' + privilege.name + '</label>' +
-                        '</div>'
-                    );
-                });
-                $('#userModalLabel').text('Edit User');
-                $('#saveUserBtn').text('Save Changes');
-                $('#userModal').modal('show');
-            },
-            error: function() {
-                alert('Error loading user details.');
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => escapeMap[char]);
+    }
+
+    function formatDate(value) {
+        if (!value) {
+            return '-';
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return escapeHtml(value);
+        }
+        return parsed.toLocaleString('de-DE');
+    }
+
+    function renderAlert(message, type = 'success') {
+        if (!message) {
+            userDetailAlert.innerHTML = '';
+            return;
+        }
+        userDetailAlert.innerHTML = `
+            <div class="alert alert-${escapeHtml(type)} alert-dismissible fade show" role="alert">
+                ${escapeHtml(message)}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+    }
+
+    function renderDefinitionList(user) {
+        const activeBadge = user.active
+            ? '<span class="badge bg-success">Active</span>'
+            : '<span class="badge bg-secondary">Inactive</span>';
+        const fallbackName = [user.first_name || '', user.last_name || ''].join(' ').trim() || '-';
+
+        userMasterData.innerHTML = `
+            <dt class="col-5 text-muted">Username</dt>
+            <dd class="col-7 mb-2">${escapeHtml(user.username || '-')}</dd>
+            <dt class="col-5 text-muted">Name</dt>
+            <dd class="col-7 mb-2">${escapeHtml(user.full_name || fallbackName)}</dd>
+            <dt class="col-5 text-muted">Email</dt>
+            <dd class="col-7 mb-2">${escapeHtml(user.email || '-')}</dd>
+            <dt class="col-5 text-muted">Legacy role</dt>
+            <dd class="col-7 mb-2">${escapeHtml(user.role || '-')}</dd>
+            <dt class="col-5 text-muted">Rank</dt>
+            <dd class="col-7 mb-2">${escapeHtml(user.rank || '-')}</dd>
+            <dt class="col-5 text-muted">Status</dt>
+            <dd class="col-7 mb-2">${activeBadge}</dd>
+            <dt class="col-5 text-muted">Active from</dt>
+            <dd class="col-7 mb-2">${formatDate(user.active_from)}</dd>
+            <dt class="col-5 text-muted">Active until</dt>
+            <dd class="col-7 mb-2">${formatDate(user.active_until)}</dd>
+            <dt class="col-5 text-muted">Last login</dt>
+            <dd class="col-7 mb-0">${formatDate(user.last_login)}</dd>
+        `;
+    }
+
+    function renderRoleBadges(roles, canManage, actionType) {
+        if (!roles.length) {
+            return '<span class="text-muted">None</span>';
+        }
+
+        return roles.map((role) => {
+            const button = canManage
+                ? `
+                    <button type="button" class="btn btn-sm btn-outline-${actionType === 'add' ? 'success' : 'danger'} js-role-action"
+                            data-role-action="${actionType}" data-role-id="${role.id}">
+                        <i class="fa-solid fa-${actionType === 'add' ? 'plus' : 'minus'}"></i>
+                    </button>
+                `
+                : '';
+
+            return `
+                <span class="d-inline-flex align-items-center gap-1">
+                    <span class="badge ${actionType === 'add' ? 'bg-success text-white' : 'bg-primary text-white'}">
+                        ${escapeHtml(role.name)}
+                    </span>
+                    ${button}
+                </span>
+            `;
+        }).join('');
+    }
+
+    function renderSourceBadges(sources) {
+        if (!sources.length) {
+            return '<span class="text-muted">No sources</span>';
+        }
+
+        return sources.map((source) => {
+            let badgeClass = 'bg-secondary';
+            if (source.startsWith('role:')) {
+                badgeClass = 'bg-info text-dark';
+            } else if (source === 'user_allow') {
+                badgeClass = 'bg-success';
+            } else if (source === 'user_deny') {
+                badgeClass = 'bg-danger';
             }
+            return `<span class="badge ${badgeClass} me-1 mb-1">${escapeHtml(source)}</span>`;
+        }).join('');
+    }
+
+    function renderPermissionStatus(permission) {
+        if (permission.denied) {
+            return '<span class="badge bg-danger">Denied</span>';
+        }
+        if (permission.effective) {
+            return '<span class="badge bg-success">Granted</span>';
+        }
+        return '<span class="badge bg-secondary">Not granted</span>';
+    }
+
+    function renderPermissionActions(permission, canManage) {
+        if (!canManage) {
+            return '<span class="text-muted">Read only</span>';
+        }
+
+        return `
+            <div class="btn-group btn-group-sm" role="group" aria-label="Permission actions">
+                <button type="button" class="btn btn-outline-success js-permission-action"
+                        data-permission-action="allow" data-permission-id="${permission.id}">
+                    <i class="fa-solid fa-check"></i>
+                </button>
+                <button type="button" class="btn btn-outline-danger js-permission-action"
+                        data-permission-action="deny" data-permission-id="${permission.id}">
+                    <i class="fa-solid fa-ban"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary js-permission-action"
+                        data-permission-action="remove" data-permission-id="${permission.id}"
+                        ${permission.has_override ? '' : 'disabled'}>
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        `;
+    }
+
+    function renderUserDetail(detail, message = '') {
+        const user = detail.user;
+        const canManageRoles = Boolean(detail.capabilities?.can_manage_roles);
+        const canManagePermissions = Boolean(detail.capabilities?.can_manage_permissions);
+
+        userModalLabel.textContent = user.id ? `User Details: ${user.username}` : 'New User';
+        userModalSubtitle.textContent = user.id ? `ID ${user.id}` : '';
+        userModalElement.dataset.userId = user.id;
+
+        rolePermissionHint.textContent = [
+            canManageRoles ? 'Role management enabled' : '',
+            canManagePermissions ? 'Permission management enabled' : '',
+        ].filter(Boolean).join(' | ');
+
+        renderDefinitionList(user);
+        renderAlert(message, 'success');
+
+        permissionReasonContainer.classList.toggle('d-none', !canManagePermissions);
+
+        activeRolesList.innerHTML = renderRoleBadges(detail.active_roles || [], canManageRoles, 'remove');
+        availableRolesList.innerHTML = renderRoleBadges(detail.available_roles || [], canManageRoles, 'add');
+
+        const effectivePermissions = detail.effective_permissions || [];
+        effectivePermissionsCount.textContent = `${effectivePermissions.length} effective permissions`;
+        effectivePermissionsList.innerHTML = effectivePermissions.length
+            ? effectivePermissions.map((name) => `<span class="badge bg-success">${escapeHtml(name)}</span>`).join('')
+            : '<span class="text-muted">None</span>';
+
+        permissionTableBody.innerHTML = (detail.permissions || []).map((permission) => `
+            <tr>
+                <td>
+                    <div class="fw-semibold">${escapeHtml(permission.name)}</div>
+                    ${permission.description ? `<div class="text-muted small">${escapeHtml(permission.description)}</div>` : ''}
+                </td>
+                <td>${renderSourceBadges(permission.sources || [])}</td>
+                <td>${renderPermissionStatus(permission)}</td>
+                <td class="text-end">${renderPermissionActions(permission, canManagePermissions)}</td>
+            </tr>
+        `).join('');
+    }
+
+    async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+            ...options,
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': csrfToken,
+                ...(options.headers || {}),
+            },
         });
-      });
 
-      // Click handler for the Create New User button
-      $('#createUserBtn').click(function() {
-          // Clear form fields
-          $('#userForm')[0].reset();
-          $('#user_id').val('');
-          $('#new_password').val('');
-          $.ajax({
-              url: "{{ url_for('admin.user_detail', user_id=0) }}".replace("0", 0),
-              type: 'GET',
-              dataType: 'json',
-              success: function(response) {
-                  var privilegesContainer = $('#privilegesContainer');
-                  privilegesContainer.empty();
-                  $.each(response.all_privileges, function(index, privilege) {
-                      privilegesContainer.append(
-                          '<div class="form-check">' +
-                          '<input class="form-check-input" type="checkbox" value="' + privilege.id + '" id="priv_' + privilege.id + '">' +
-                          '<label class="form-check-label" for="priv_' + privilege.id + '">' + privilege.name + '</label>' +
-                          '</div>'
-                      );
-                  });
-                  $('#userModalLabel').text('Create New User');
-                  $('#saveUserBtn').text('Create User');
-                  $('#userModal').modal('show');
-              },
-              error: function() {
-                  alert('Error loading privileges.');
-              }
-          });
-      });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || data.message || `Request failed with status ${response.status}`);
+        }
+        return data;
+    }
 
-      // Handle form submission (both update and create)
-      $('#userForm').submit(function(e) {
-          e.preventDefault();
-          if (!confirm('Are you sure you want to perform this action?')) {
-              return;
-          }
-          var userId = $('#user_id').val();
-          var privileges = [];
-          $('#privilegesContainer input:checkbox:checked').each(function() {
-              privileges.push(parseInt($(this).val()));
-          });
-          var payload = {
-              username:   $('#username').val(),
-              email:      $('#email').val(),
-              first_name: $('#first_name').val(),
-              last_name:  $('#last_name').val(),
-              role:       $('#role').val(),
-              rank:       $('#rank').val(),
-              active:     $('#active').is(':checked'),
-              new_password: $('#new_password').val(),
-              privileges: privileges
-          };
-          var ajaxOptions = {
-              contentType: 'application/json',
-              data: JSON.stringify(payload),
-              dataType: 'json',
-              success: function(response) {
-                  //alert(response.message);
-                  location.reload(); // refresh the page to update the tables
-              },
-              error: function(xhr) {
-                  alert('Error saving user data: ' + xhr.responseText);
-              }
-          };
-          if (userId) {
-              // Update existing user
-              ajaxOptions.url = "{{ url_for('admin.user_detail', user_id=0) }}".replace("0", userId);
-              ajaxOptions.type = 'POST';
-          } else {
-              // Create new user
-              ajaxOptions.url = "{{ url_for('admin.create_user') }}";
-              ajaxOptions.type = 'POST';
-          }
-          $.ajax(ajaxOptions);
-      });
+    async function openUserDetail(userId) {
+        renderAlert('');
+        permissionReasonInput.value = '';
+        userModalLabel.textContent = 'Loading...';
+        userModalSubtitle.textContent = '';
+        userMasterData.innerHTML = '<dd class="col-12 mb-0 text-muted">Loading...</dd>';
+        activeRolesList.innerHTML = '';
+        availableRolesList.innerHTML = '';
+        effectivePermissionsList.innerHTML = '';
+        effectivePermissionsCount.textContent = '';
+        permissionTableBody.innerHTML = '';
+        userModal.show();
 
-      // Reset Password button handler (example: simply clear the password field or perform further actions)
-      $('#resetPasswordBtn').click(function() {
-          if (confirm('Are you sure you want to reset the password for this user?')) {
-              $('#new_password').val('');
-              alert('Password will be reset on save.');
-          }
-      });
+        try {
+            const detail = await fetchJson(`{{ url_for('admin.user_detail', user_id=0) }}`.replace('0', userId));
+            renderUserDetail(detail);
+        } catch (error) {
+            userModalLabel.textContent = 'User Details';
+            renderAlert(error.message, 'danger');
+        }
+    }
+
+    async function performRoleAction(roleId, action) {
+        const userId = userModalElement.dataset.userId;
+        const payload = {
+            role_id: parseInt(roleId, 10),
+            action: action,
+        };
+        const detail = await fetchJson(`{{ url_for('admin.update_user_roles', user_id=0) }}`.replace('0', userId), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        renderUserDetail(detail, detail.message || 'Role assignment updated.');
+    }
+
+    async function performPermissionAction(permissionId, action) {
+        const userId = userModalElement.dataset.userId;
+        const payload = {
+            permission_id: parseInt(permissionId, 10),
+            action: action,
+            reason: permissionReasonInput.value.trim() || null,
+        };
+        const detail = await fetchJson(`{{ url_for('admin.update_user_permissions', user_id=0) }}`.replace('0', userId), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        renderUserDetail(detail, detail.message || 'Permission override updated.');
+    }
+
+    document.addEventListener('click', async (event) => {
+        const detailButton = event.target.closest('.js-user-detail');
+        if (detailButton) {
+            event.preventDefault();
+            await openUserDetail(detailButton.dataset.userId);
+            return;
+        }
+
+        const roleButton = event.target.closest('.js-role-action');
+        if (roleButton) {
+            event.preventDefault();
+            try {
+                await performRoleAction(roleButton.dataset.roleId, roleButton.dataset.roleAction);
+            } catch (error) {
+                renderAlert(error.message, 'danger');
+            }
+            return;
+        }
+
+        const permissionButton = event.target.closest('.js-permission-action');
+        if (permissionButton) {
+            event.preventDefault();
+            try {
+                await performPermissionAction(permissionButton.dataset.permissionId, permissionButton.dataset.permissionAction);
+            } catch (error) {
+                renderAlert(error.message, 'danger');
+            }
+        }
     });
 
+    document.getElementById('clearPermissionOverrideReason').addEventListener('click', () => {
+        permissionReasonInput.value = '';
+    });
+})();
 </script>
 {% endblock %}
