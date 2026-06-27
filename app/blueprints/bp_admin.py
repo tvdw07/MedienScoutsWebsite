@@ -11,7 +11,6 @@ from app.models import (
     Permission,
     ProblemTicket,
     ProblemTicketUser,
-    RankEnum,
     Role,
     RoleEnum,
     TicketHistory,
@@ -139,7 +138,6 @@ def _build_user_detail_payload(user):
             'full_name': '',
             'email': '',
             'role': '',
-            'rank': '',
             'active': True,
             'active_from': None,
             'active_until': None,
@@ -159,7 +157,6 @@ def _build_user_detail_payload(user):
             'full_name': f'{user.first_name} {user.last_name}'.strip() or user.username,
             'email': user.email,
             'role': user.role.value if user.role else '',
-            'rank': user.rank.value if user.rank else '',
             'active': user.active,
             'active_from': _to_iso(user.active_from),
             'active_until': _to_iso(user.active_until),
@@ -495,17 +492,11 @@ def create_user():
         return jsonify({'error': 'Email already exists'}), 400
 
     role_value = data.get('role') or RoleEnum.MEMBER.value
-    rank_value = data.get('rank') or RankEnum.KEIN.value
 
     try:
         role_enum = RoleEnum(role_value)
     except ValueError:
         role_enum = RoleEnum.MEMBER
-
-    try:
-        rank_enum = RankEnum(rank_value)
-    except ValueError:
-        rank_enum = RankEnum.KEIN
 
     new_user = User(
         username=username,
@@ -513,7 +504,6 @@ def create_user():
         last_name=last_name,
         email=email,
         role=role_enum,
-        rank=rank_enum,
         active=True,
         active_from=datetime.now(),
     )

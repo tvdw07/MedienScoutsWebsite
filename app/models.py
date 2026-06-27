@@ -12,15 +12,6 @@ from sqlalchemy.ext.associationproxy import association_proxy
 db = SQLAlchemy()
 
 
-# Enum for user ranks
-class RankEnum(enum.Enum):
-    KEIN = 'KEIN'
-    BRONZE = 'BRONZE'
-    SILBER = 'SILBER'
-    GOLD = 'GOLD'
-    PLATIN = 'PLATIN'
-
-
 # Enum for user roles
 class RoleEnum(enum.Enum):
     ADMIN = 'ADMIN'
@@ -37,7 +28,6 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     role = db.Column(db.Enum(RoleEnum), nullable=False, default=RoleEnum.MEMBER)
-    rank = db.Column(db.Enum(RankEnum), nullable=True, default=RankEnum.KEIN)
     active = db.Column(db.Boolean, default=True)
     active_from = db.Column(DateTime, nullable=True)  # Date when the user becomes active
     active_until = db.Column(DateTime, nullable=True)  # Date when the user becomes inactive

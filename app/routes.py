@@ -13,7 +13,7 @@ from app.decorators import any_permission_required, permission_required, ticket_
 from app.forms import EditProfileForm
 from app.legal import build_legal_context
 from app.models import db, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
-    MiscTicketUser, TicketHistory, User, RoleEnum, RankEnum
+    MiscTicketUser, TicketHistory, User, RoleEnum
 from email_tools import send_ticket_link, notify_admin, notify_client, notify_user_about_ticket_change, send_reset_email
 
 

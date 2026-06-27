@@ -106,8 +106,15 @@ def test_user_details_require_users_view(client, app):
     assert response.status_code == 200
     payload = response.get_json()
     assert payload['user']['id'] == target_user_id
+    assert 'rank' not in payload['user']
     assert payload['capabilities']['can_manage_roles'] is False
     assert payload['capabilities']['can_manage_permissions'] is False
+
+
+def test_user_model_has_no_rank_column(app):
+    with app.app_context():
+        assert 'rank' not in User.__table__.columns
+        assert 'rank' not in User.__mapper__.attrs.keys()
 
 
 def test_members_page_exposes_status_actions(client, app):
@@ -125,6 +132,7 @@ def test_members_page_exposes_status_actions(client, app):
     assert b'js-user-status' in response.data
     assert b'data-user-active="false"' in response.data
     assert b'data-user-active="true"' in response.data
+    assert b'Rank' not in response.data
 
 
 def test_roles_can_only_be_changed_with_manage_roles(client, app):
