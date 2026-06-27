@@ -1,64 +1,112 @@
 {% extends "base.html" %}
+{% from "legal/_macros.html" import definition_list %}
 
 {% block title %}Impressum{% endblock %}
 
 {% block content %}
-{% set responsible_name = config.get('IMPRINT_RESPONSIBLE_NAME', 'Tim von der Weppen') %}
-{% set responsible_email = config.get('IMPRINT_RESPONSIBLE_EMAIL', 'tim.vonderweppen@web.de') %}
-{% set development_text = config.get(
-    'IMPRINT_DEVELOPMENT_TEXT',
-    'Die Website wurde von Tim von der Weppen konzipiert und entwickelt.'
-) %}
-<div class="content-section">
-    <h1 class="mb-4">Impressum</h1>
+<div class="content-section legal-page">
+    <div class="mb-4">
+        <p class="text-uppercase text-muted small mb-2">Rechtliche Angaben</p>
+        <h1 class="mb-2">Impressum</h1>
+        <p class="legal-intro mb-0">Diese Angaben gelten für die jeweilige Installation und den dortigen Betreiber.</p>
+    </div>
 
-    <h2>Angaben gemäß § 5 TMG</h2>
-    <p>Norbert-Gymnasium</p>
+    <section class="legal-section">
+        <h2>Betreiber</h2>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <p class="legal-label mb-1">Betreiber</p>
+                <p class="mb-0 fw-semibold">{{ legal.imprint.operator.name|default('Nicht hinterlegt', true) }}</p>
+            </div>
+            <div class="col-md-6">
+                <p class="legal-label mb-1">Organisation / Schule</p>
+                <p class="mb-0">{{ legal.imprint.operator.organization_name|default('Nicht hinterlegt', true) }}</p>
+            </div>
+        </div>
+    </section>
 
-    <h2>Kontakt</h2>
-    <p>
-        {{ responsible_name }}<br>
-        E-Mail: <a href="mailto:{{ responsible_email }}">{{ responsible_email }}</a>
-    </p>
+    <section class="legal-section">
+        <h2>Kontakt</h2>
+        {{ definition_list(legal.imprint.contact_items, 'Keine Kontaktdaten hinterlegt.') }}
+    </section>
 
-    <h2>Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
-    <p>
-        {{ responsible_name }}<br>
-        E-Mail: <a href="mailto:{{ responsible_email }}">{{ responsible_email }}</a>
-    </p>
+    <section class="legal-section">
+        <h2>Vertretungsberechtigte Person</h2>
+        <p class="mb-0">{{ legal.imprint.operator.representative_name|default('Nicht hinterlegt', true) }}</p>
+    </section>
 
-    <h2>Entwicklung</h2>
-    <p>{{ development_text }}</p>
+    <section class="legal-section">
+        <h2>Anschrift</h2>
+        {% if legal.imprint.address_lines %}
+        <address class="mb-0">
+            {% for line in legal.imprint.address_lines %}
+            {{ line }}<br>
+            {% endfor %}
+        </address>
+        {% else %}
+        <p class="mb-0 text-muted">Nicht hinterlegt</p>
+        {% endif %}
+    </section>
 
-    <h2>Haftungsausschluss</h2>
-    <h3>Haftung für Inhalte</h3>
-    <p>Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen
-        Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet,
-        übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine
-        rechtswidrige Tätigkeit hinweisen.</p>
-    <p>Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben
-        hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten
-        Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese Inhalte
-        umgehend entfernen.</p>
+    {% if legal.imprint.vat_id %}
+    <section class="legal-section">
+        <h2>Umsatzsteuer-ID</h2>
+        <p class="mb-0">{{ legal.imprint.vat_id }}</p>
+    </section>
+    {% endif %}
 
-    <h3>Haftung für Links</h3>
-    <p>Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb
-        können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist
-        stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum
-        Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der
-        Verlinkung nicht erkennbar.</p>
-    <p>Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist jedoch ohne konkrete Anhaltspunkte einer
-        Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend
-        entfernen.</p>
+    {% if legal.imprint.editorial_responsible_name or legal.imprint.editorial_responsible_email %}
+    <section class="legal-section">
+        <h2>Verantwortlich für journalistisch-redaktionelle Inhalte</h2>
+        <p class="mb-1">{{ legal.imprint.editorial_responsible_name|default('Nicht hinterlegt', true) }}</p>
+        {% if legal.imprint.editorial_responsible_email %}
+        <p class="mb-0">
+            <a href="mailto:{{ legal.imprint.editorial_responsible_email }}">{{ legal.imprint.editorial_responsible_email }}</a>
+        </p>
+        {% endif %}
+    </section>
+    {% endif %}
 
-    <h3>Urheberrecht</h3>
-    <p>Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen
-        Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen
-        des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Downloads und
-        Kopien dieser Seite sind nur für den privaten, nicht kommerziellen Gebrauch gestattet.</p>
-    <p>Soweit die Inhalte auf dieser Seite nicht vom Betreiber erstellt wurden, werden die Urheberrechte Dritter
-        beachtet. Insbesondere werden Inhalte Dritter als solche gekennzeichnet. Sollten Sie trotzdem auf eine
-        Urheberrechtsverletzung aufmerksam werden, bitten wir um einen entsprechenden Hinweis. Bei Bekanntwerden von
-        Rechtsverletzungen werden wir derartige Inhalte umgehend entfernen.</p>
+    <section class="legal-section">
+        <h2>Software</h2>
+        <p>Diese Installation basiert auf dem Open-Source-Projekt <strong>{{ legal.software.project_name }}</strong>.</p>
+        <p>{{ legal.software.statement }}</p>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <p class="legal-label mb-1">Repository</p>
+                <p class="mb-0">
+                    <a href="{{ legal.software.repository_url }}" target="_blank" rel="noopener noreferrer">
+                        {{ legal.software.repository_url }}
+                    </a>
+                </p>
+            </div>
+            <div class="col-md-6">
+                <p class="legal-label mb-1">Lizenz</p>
+                <p class="mb-0">{{ legal.software.license_text }}</p>
+            </div>
+        </div>
+        {% if legal.software.support_email or legal.software.version or legal.software.build_number %}
+        <div class="row g-3 mt-1">
+            {% if legal.software.support_email %}
+            <div class="col-md-6">
+                <p class="legal-label mb-1">Support-E-Mail</p>
+                <p class="mb-0">
+                    <a href="mailto:{{ legal.software.support_email }}">{{ legal.software.support_email }}</a>
+                </p>
+            </div>
+            {% endif %}
+            {% if legal.software.version or legal.software.build_number %}
+            <div class="col-md-6">
+                <p class="legal-label mb-1">Version</p>
+                <p class="mb-0">
+                    {% if legal.software.version %}{{ legal.software.version }}{% endif %}
+                    {% if legal.software.version and legal.software.build_number %} · {% endif %}
+                    {% if legal.software.build_number %}Build {{ legal.software.build_number }}{% endif %}
+                </p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
 </div>
 {% endblock %}

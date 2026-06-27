@@ -1,72 +1,117 @@
 {% extends "base.html" %}
+{% from "legal/_macros.html" import definition_list, bullet_list %}
 
-{% block title %}Privacy Policy{% endblock %}
+{% block title %}Datenschutzerklärung{% endblock %}
 
 {% block content %}
-{% set responsible_name = config.get('PRIVACY_RESPONSIBLE_NAME', config.get('IMPRINT_RESPONSIBLE_NAME', 'Tim von der Weppen')) %}
-{% set responsible_email = config.get('PRIVACY_RESPONSIBLE_EMAIL', config.get('IMPRINT_RESPONSIBLE_EMAIL', 'tim.vonderweppen@web.de')) %}
-<div class="content-section">
-    <h1>Privacy Policy in accordance with § 13 TMG and Art. 13 GDPR</h1>
+<div class="content-section legal-page">
+    <div class="mb-4">
+        <p class="text-uppercase text-muted small mb-2">Datenschutz</p>
+        <h1 class="mb-2">Datenschutzerklärung</h1>
+        <p class="legal-intro mb-0">Diese Erklärung beschreibt die Datenverarbeitung der jeweils betriebenen Installation.</p>
+    </div>
 
-    <h2>Controller / Responsible Party</h2>
-    <p>
-        {{ responsible_name }}<br>
-        E-Mail: <a href="mailto:{{ responsible_email }}">{{ responsible_email }}</a>
-    </p>
+    <section class="legal-section">
+        <h2>Verantwortlicher</h2>
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <p class="legal-label mb-1">Betreiber</p>
+                <p class="mb-0 fw-semibold">{{ legal.privacy.controller.name|default('Nicht hinterlegt', true) }}</p>
+                <p class="mb-0">{{ legal.privacy.controller.organization_name|default('Nicht hinterlegt', true) }}</p>
+            </div>
+            <div class="col-lg-6">
+                <p class="legal-label mb-1">Vertretungsberechtigte Person</p>
+                <p class="mb-0">{{ legal.privacy.controller.representative_name|default('Nicht hinterlegt', true) }}</p>
+            </div>
+        </div>
+        <div class="mt-3">
+            <p class="legal-label mb-1">Anschrift</p>
+            {% if legal.privacy.controller.address_lines %}
+            <address class="mb-0">
+                {% for line in legal.privacy.controller.address_lines %}
+                {{ line }}<br>
+                {% endfor %}
+            </address>
+            {% else %}
+            <p class="mb-0 text-muted">Nicht hinterlegt</p>
+            {% endif %}
+        </div>
+        <div class="mt-3">
+            {{ definition_list(legal.privacy.controller.contact_items, 'Keine Kontaktdaten hinterlegt.') }}
+        </div>
+    </section>
 
-    <h2>§ 1 General Information on Data Processing</h2>
-    <p>
-        We, the operators of the website "MedienScouts", place great importance on the protection of your personal data
-        and the preservation of your privacy. Your data is processed only within the framework of the applicable data
-        protection regulations, in particular the Telemedia Act (TMG) and the General Data Protection Regulation
-        (GDPR).
-    </p>
+    <section class="legal-section">
+        <h2>Datenschutzkontakt</h2>
+        <p class="mb-3">{{ legal.privacy.contact_note }}</p>
+        {{ definition_list(legal.privacy.data_protection_contact.contact_items, 'Nicht hinterlegt.') }}
+    </section>
 
-    <h2>§ 2 Collection and Storage of Personal Data</h2>
-    <p>When you use our website, we may process the following personal data:</p>
-    <ul>
-        <li>First name</li>
-        <li>Last name</li>
-        <li>Email address</li>
-        <li>Username</li>
-        <li>Role assignments</li>
-        <li>Rank</li>
-        <li>Activity status</li>
-        <li>Ticket information such as ID, description and status</li>
-        <li>Forum message content</li>
-    </ul>
-    <p>The processing is carried out to provide and manage user accounts, handle tickets, operate the forum, improve
-        the service and fulfill legal obligations.</p>
+    <section class="legal-section">
+        <h2>Zweck der Anwendung</h2>
+        <p class="mb-0">{{ legal.privacy.purpose_text }}</p>
+    </section>
 
-    <h2>§ 3 Data Sharing</h2>
-    <p>
-        Personal data is only shared with third parties if you have given consent, if the transfer is necessary for
-        legal claims, if there is a legal obligation, or if the transfer is necessary for contractual processing.
-    </p>
+    <section class="legal-section">
+        <h2>Verarbeitete personenbezogene Daten</h2>
+        {% for category in legal.privacy.data_categories %}
+        <article class="mt-3">
+            <h3 class="mb-2">{{ category.title }}</h3>
+            <p>{{ category.summary }}</p>
+            {{ bullet_list(category.points) }}
+        </article>
+        {% endfor %}
+    </section>
 
-    <h2>§ 4 Your Rights</h2>
-    <p>You have the right to information, rectification, erasure, restriction of processing, data portability and
-        objection in accordance with the GDPR. You also have the right to lodge a complaint with the competent
-        supervisory authority.</p>
+    <section class="legal-section">
+        <h2>Zweck der Datenverarbeitung</h2>
+        {{ bullet_list(legal.privacy.processing_purposes) }}
+    </section>
 
-    <h2>§ 5 Right to Object</h2>
-    <p>
-        If your personal data is processed on the basis of legitimate interests, you may object to the processing for
-        reasons arising from your particular situation. In the case of direct marketing, you have a general right to
-        object.
-    </p>
+    <section class="legal-section">
+        <h2>Rechtsgrundlage</h2>
+        <p class="mb-0">{{ legal.privacy.lawful_basis_text }}</p>
+    </section>
 
-    <h2>§ 6 Data Security</h2>
-    <p>
-        We use technical and organizational measures to protect your data against accidental or intentional
-        manipulation, loss, destruction or unauthorized access. The transmission of data is protected by SSL/TLS where
-        supported by the browser.
-    </p>
+    <section class="legal-section">
+        <h2>Speicherdauer</h2>
+        <p class="mb-0">{{ legal.privacy.storage_duration_text }}</p>
+    </section>
 
-    <h2>§ 7 Validity and Changes to This Privacy Policy</h2>
-    <p>
-        This privacy policy is currently valid. Due to the further development of our website or changed legal
-        requirements, changes may become necessary. The current version can be accessed on the website at any time.
-    </p>
+    <section class="legal-section">
+        <h2>Weitergabe an Dritte</h2>
+        {{ bullet_list(legal.privacy.third_party_points) }}
+    </section>
+
+    <section class="legal-section">
+        <h2>Hosting</h2>
+        <p class="mb-0">{{ legal.privacy.hosting_text }}</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>E-Mail-Versand</h2>
+        <p class="mb-0">{{ legal.privacy.email_delivery_text }}</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>Cookies und Session-Cookies</h2>
+        <p class="mb-0">{{ legal.privacy.cookie_text }}</p>
+    </section>
+
+    <section class="legal-section">
+        <h2>Sicherheitsmaßnahmen</h2>
+        {{ bullet_list(legal.privacy.security_measures) }}
+    </section>
+
+    <section class="legal-section">
+        <h2>Betroffenenrechte</h2>
+        {{ bullet_list(legal.privacy.rights_items) }}
+    </section>
+
+    <section class="legal-section">
+        <h2>Kontakt bei Datenschutzanfragen</h2>
+        <p class="mb-3">Für Datenschutzanfragen kann die oben genannte Kontaktstelle genutzt werden.</p>
+        {{ definition_list(legal.privacy.data_protection_contact.contact_items, 'Nicht hinterlegt.') }}
+    </section>
 </div>
 {% endblock %}

@@ -17,7 +17,5 @@ environments.
 __Usage at Your Own Risk:__ By using, modifying, or distributing the Software, you agree that you do so at your own
 risk. The author will not be held responsible for any issues, damages, or other consequences that may arise from the use
 of the Software.
-For permission requests, please contact:
-
-Tim von der Weppen  
-Email: tim.vonderweppen@web.de
+For permission requests, please contact the repository maintainer or open an
+issue in the project repository.

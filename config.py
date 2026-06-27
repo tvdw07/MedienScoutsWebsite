@@ -30,6 +30,17 @@ def _env_bool(name, default):
     return value.strip().lower() in ('1', 'true', 'yes', 'on')
 
 
+def _env_text(*names, default=''):
+    for name in names:
+        value = os.environ.get(name)
+        if value is None:
+            continue
+        value = value.strip()
+        if value:
+            return value
+    return default
+
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 _load_env_file(os.path.join(BASE_DIR, '.env'))
 APP_ENV = os.environ.get('APP_ENV', os.environ.get('FLASK_ENV', 'development')).lower()
@@ -84,11 +95,31 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', IS_PRODUCTION)
 SESSION_COOKIE_SAMESITE = 'Strict'
 
-IMPRINT_RESPONSIBLE_NAME = os.environ.get('IMPRINT_RESPONSIBLE_NAME', 'Tim von der Weppen')
-IMPRINT_RESPONSIBLE_EMAIL = os.environ.get('IMPRINT_RESPONSIBLE_EMAIL', 'tim.vonderweppen@web.de')
-PRIVACY_RESPONSIBLE_NAME = os.environ.get('PRIVACY_RESPONSIBLE_NAME', IMPRINT_RESPONSIBLE_NAME)
-PRIVACY_RESPONSIBLE_EMAIL = os.environ.get('PRIVACY_RESPONSIBLE_EMAIL', IMPRINT_RESPONSIBLE_EMAIL)
-IMPRINT_DEVELOPMENT_TEXT = os.environ.get(
-    'IMPRINT_DEVELOPMENT_TEXT',
-    'Die Website wurde von Tim von der Weppen konzipiert und entwickelt.',
+LEGAL_OPERATOR_NAME = _env_text('LEGAL_OPERATOR_NAME')
+LEGAL_ORGANIZATION_NAME = _env_text('LEGAL_ORGANIZATION_NAME')
+LEGAL_REPRESENTATIVE_NAME = _env_text('LEGAL_REPRESENTATIVE_NAME')
+LEGAL_STREET = _env_text('LEGAL_STREET')
+LEGAL_HOUSE_NUMBER = _env_text('LEGAL_HOUSE_NUMBER')
+LEGAL_POSTAL_CODE = _env_text('LEGAL_POSTAL_CODE')
+LEGAL_CITY = _env_text('LEGAL_CITY')
+LEGAL_COUNTRY = _env_text('LEGAL_COUNTRY')
+LEGAL_PHONE = _env_text('LEGAL_PHONE')
+LEGAL_EMAIL = _env_text('LEGAL_EMAIL')
+LEGAL_WEBSITE = _env_text('LEGAL_WEBSITE')
+LEGAL_VAT_ID = _env_text('LEGAL_VAT_ID')
+LEGAL_EDITORIAL_RESPONSIBLE_NAME = _env_text('LEGAL_EDITORIAL_RESPONSIBLE_NAME')
+LEGAL_EDITORIAL_RESPONSIBLE_EMAIL = _env_text('LEGAL_EDITORIAL_RESPONSIBLE_EMAIL')
+LEGAL_PRIVACY_CONTACT_NAME = _env_text('LEGAL_PRIVACY_CONTACT_NAME')
+LEGAL_PRIVACY_CONTACT_EMAIL = _env_text('LEGAL_PRIVACY_CONTACT_EMAIL')
+LEGAL_SUPPORT_EMAIL = _env_text('LEGAL_SUPPORT_EMAIL')
+LEGAL_GITHUB_REPOSITORY = _env_text('LEGAL_GITHUB_REPOSITORY', default='https://github.com/tvdw07/MedienScoutsWebsite')
+LEGAL_VERSION = _env_text('LEGAL_VERSION')
+LEGAL_BUILD_NUMBER = _env_text('LEGAL_BUILD_NUMBER')
+LEGAL_LAWFUL_BASIS_TEXT = _env_text(
+    'LEGAL_LAWFUL_BASIS_TEXT',
+    default='Soweit keine speziellere Rechtsgrundlage genannt wird, erfolgt die Verarbeitung auf Grundlage von Art. 6 Abs. 1 lit. b, c und f DSGVO.',
+)
+LEGAL_STORAGE_DURATION_TEXT = _env_text(
+    'LEGAL_STORAGE_DURATION_TEXT',
+    default='Personenbezogene Daten werden nur so lange gespeichert, wie es für den jeweiligen Zweck erforderlich ist oder gesetzliche Aufbewahrungspflichten bestehen.',
 )

@@ -1,0 +1,28 @@
+{% macro definition_list(items, empty_text='Nicht hinterlegt') -%}
+{% if items %}
+<dl class="row legal-meta mb-0">
+    {% for item in items %}
+    <dt class="col-sm-4 col-lg-3 text-muted">{{ item.label }}</dt>
+    <dd class="col-sm-8 col-lg-9 mb-2">
+        {% if item.href %}
+        <a href="{{ item.href }}"{% if item.external %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ item.value }}</a>
+        {% else %}
+        {{ item.value }}
+        {% endif %}
+    </dd>
+    {% endfor %}
+</dl>
+{% else %}
+<p class="text-muted mb-0">{{ empty_text }}</p>
+{% endif %}
+{%- endmacro %}
+
+{% macro bullet_list(items) -%}
+{% if items %}
+<ul class="legal-list mb-0">
+    {% for item in items %}
+    <li>{{ item }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+{%- endmacro %}

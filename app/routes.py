@@ -11,6 +11,7 @@ from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from app.decorators import any_permission_required, permission_required, ticket_owner_required
 from app.forms import MessageForm, EditProfileForm
+from app.legal import build_legal_context
 from app.models import db, Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, TicketHistory, User, RoleEnum, RankEnum
 from email_tools import send_ticket_link, notify_admin, notify_client, notify_user_about_ticket_change, send_reset_email
@@ -36,6 +37,13 @@ def members():
     active_members = User.query.filter_by(active=True).all()
     inactive_members = User.query.filter_by(active=False).all()
     return render_template('members.html', active_members=active_members, inactive_members=inactive_members)
+
+
+@bp_main.context_processor
+def inject_legal_context():
+    return {
+        'legal': build_legal_context(current_app.config),
+    }
 
 
 @bp_main.route('/ticketverwaltung')

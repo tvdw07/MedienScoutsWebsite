@@ -21,15 +21,32 @@ In short:
 - Standard roles are `Admin`, `Teacher`, `MediaScout`, and `User`
 
 ## Legal Configuration
-The legal pages read their responsible contacts from `.env` / environment variables:
+The legal pages read their operator-specific data from `LEGAL_*` environment variables:
 
-- `IMPRINT_RESPONSIBLE_NAME`
-- `IMPRINT_RESPONSIBLE_EMAIL`
-- `PRIVACY_RESPONSIBLE_NAME`
-- `PRIVACY_RESPONSIBLE_EMAIL`
-- `IMPRINT_DEVELOPMENT_TEXT`
+- `LEGAL_OPERATOR_NAME`
+- `LEGAL_ORGANIZATION_NAME`
+- `LEGAL_REPRESENTATIVE_NAME`
+- `LEGAL_STREET`
+- `LEGAL_HOUSE_NUMBER`
+- `LEGAL_POSTAL_CODE`
+- `LEGAL_CITY`
+- `LEGAL_COUNTRY`
+- `LEGAL_PHONE`
+- `LEGAL_EMAIL`
+- `LEGAL_WEBSITE`
+- `LEGAL_VAT_ID`
+- `LEGAL_EDITORIAL_RESPONSIBLE_NAME`
+- `LEGAL_EDITORIAL_RESPONSIBLE_EMAIL`
+- `LEGAL_PRIVACY_CONTACT_NAME`
+- `LEGAL_PRIVACY_CONTACT_EMAIL`
+- `LEGAL_SUPPORT_EMAIL`
+- `LEGAL_GITHUB_REPOSITORY`
+- `LEGAL_VERSION`
+- `LEGAL_BUILD_NUMBER`
+- `LEGAL_LAWFUL_BASIS_TEXT`
+- `LEGAL_STORAGE_DURATION_TEXT`
 
-The defaults in `.env.example` point to the current project contact.
+If a value is omitted, the pages fall back to neutral placeholders or built-in defaults where appropriate.
 
 ## Installation
 
