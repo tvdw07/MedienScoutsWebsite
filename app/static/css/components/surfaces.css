@@ -1,0 +1,32 @@
+.btn-primary {
+    background-color: #FF9900;
+    border: none;
+    border-radius: 5px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    color: #ffffff;
+    font-size: 1.1em;
+    padding: 10px 20px;
+    transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #cc7a00;
+}
+
+.content-section {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 30px;
+    padding: 30px;
+}
+
+.alert {
+    background-color: #ffc107;
+    border-radius: 5px;
+    color: #212529;
+    font-weight: bold;
+    margin-top: 20px;
+    padding: 10px;
+    text-align: center;
+}

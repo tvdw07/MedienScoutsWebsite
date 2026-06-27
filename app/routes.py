@@ -28,7 +28,7 @@ def is_safe_url(target):
 def home():
     """Startseite mit der Anzahl der aktiven Mitglieder"""
     member_count = User.query.filter_by(active=True).count()
-    return render_template('home.html', member_count=member_count)
+    return render_template('pages/home.html', member_count=member_count)
 
 
 @bp_main.route('/members')
@@ -36,7 +36,7 @@ def members():
     """Listet aktive und inaktive Mitglieder auf"""
     active_members = User.query.filter_by(active=True).all()
     inactive_members = User.query.filter_by(active=False).all()
-    return render_template('members.html', active_members=active_members, inactive_members=inactive_members)
+    return render_template('pages/members.html', active_members=active_members, inactive_members=inactive_members)
 
 
 @bp_main.context_processor
@@ -90,7 +90,7 @@ def ticket_verwaltung():
     )
 
     return render_template(
-        'ticketverwaltung.html',
+        'tickets/ticketverwaltung.html',
         open_problem_tickets=open_problem_tickets,
         open_training_tickets=open_training_tickets,
         open_misc_tickets=open_misc_tickets,
@@ -122,7 +122,7 @@ def ticket_details(ticket_type, ticket_id):
 
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket_id).order_by(
         TicketHistory.created_at).all()
-    return render_template('ticket_details.html', ticket=ticket, ticket_type=ticket_type, ticket_history=ticket_history)
+    return render_template('tickets/ticket_details.html', ticket=ticket, ticket_type=ticket_type, ticket_history=ticket_history)
 
 
 @bp_main.route('/ticket/<int:ticket_id>/claim', methods=['POST'])
@@ -336,7 +336,7 @@ def send_ticket():
         flash(f'Ticket submitted successfully! Type: {ticket_type}', 'success')
         return redirect(url_for('main.home'))
 
-    return render_template('ticket.html')
+    return render_template('tickets/ticket.html')
 
 
 def save_photo(photo, first_name, last_name):
@@ -388,7 +388,7 @@ def logout():
 
 @bp_main.route('/privacy_policy')
 def privacy_policy():
-    return render_template('privacy_policy.html')
+    return render_template('legal/privacy_policy.html')
 
 
 @bp_main.route('/archiv')
@@ -401,7 +401,7 @@ def archiv():
     solved_training_tickets = TrainingTicket.query.filter_by(status_id=4).all()
     solved_misc_tickets = MiscTicket.query.filter_by(status_id=4).all()
 
-    return render_template('archiv.html',
+    return render_template('pages/archiv.html',
                            solved_problem_tickets=solved_problem_tickets,
                            solved_training_tickets=solved_training_tickets,
                            solved_misc_tickets=solved_misc_tickets)
@@ -409,7 +409,7 @@ def archiv():
 
 @bp_main.route('/impressum')
 def impressum():
-    return render_template('impressum.html')
+    return render_template('legal/impressum.html')
 
 
 @bp_main.route('/ticket/<token>', methods=['GET', 'POST'])
@@ -454,7 +454,7 @@ def view_ticket(token):
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket.id).order_by(
         TicketHistory.created_at).all()
 
-    return render_template('view_ticket.html', ticket=ticket, token=token, ticket_history=ticket_history)
+    return render_template('tickets/view_ticket.html', ticket=ticket, token=token, ticket_history=ticket_history)
 
 
 def log_ticket_message(ticket_type, ticket_id, message, author_type):
@@ -576,7 +576,7 @@ def profile():
         return redirect(url_for('main.profile'))
 
     return render_template(
-        'profile.html',
+        'pages/profile.html',
         form=form,
         assigned_roles=assigned_roles,
     )
