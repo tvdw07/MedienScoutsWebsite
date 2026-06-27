@@ -66,6 +66,9 @@ The `admin.view_statistics` permission also exposes the admin ticket overview,
 which lists all tickets that are not yet archived and shows the current
 Bearbeiter for each ticket.
 
+For a permission-by-permission reference, see
+[docs/permission-reference.md](docs/permission-reference.md).
+
 In this repository the protected routes live in:
 
 - `app/blueprints/main/pages.py`
