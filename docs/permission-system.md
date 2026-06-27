@@ -59,6 +59,13 @@ Admin-facing mutation routes also enforce self-protection: a user cannot remove
 the last admin-related permission source from their own account or from a role
 they currently use to obtain admin access.
 
+In this repository the protected routes live in:
+
+- `app/blueprints/main/pages.py`
+- `app/blueprints/main/tickets.py`
+- `app/blueprints/main/account.py`
+- `app/blueprints/bp_admin.py`
+
 ## Effective Permissions
 
 User permissions are resolved with:

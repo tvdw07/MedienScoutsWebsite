@@ -211,13 +211,12 @@ def create_app():
 
     from .blueprints.bp_auth import bp_auth
     from .blueprints.bp_admin import bp_admin
-    from .routes import bp_main
+    from .blueprints.main import bp_main
     app.register_blueprint(bp_auth)
     app.register_blueprint(bp_admin)
     app.register_blueprint(bp_main)
     limiter.limit("3 per minute", methods=["POST"])(app.view_functions["auth.login"])
     limiter.limit("1 per minute", methods=["POST"])(app.view_functions["main.send_ticket"])
     limiter.limit("1 per minute", methods=["POST"])(app.view_functions["auth.request_password_reset"])
-    from . import routes
     app.logger.info('Application started successfully')
     return app

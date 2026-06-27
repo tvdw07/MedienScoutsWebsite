@@ -9,6 +9,19 @@ A comprehensive ticketing system with multiple ticket types and user management.
 - Administrative panel for configuration and user management
 - Logging and history tracking for tickets
 
+## Project Structure
+The application is split into focused blueprints instead of a single route module:
+
+- `app/blueprints/main/pages.py` for public pages and legal content
+- `app/blueprints/main/tickets.py` for ticket submission and ticket handling
+- `app/blueprints/main/account.py` for profile and session actions
+- `app/blueprints/main/utils.py` for shared ticket helpers
+- `app/blueprints/bp_auth.py` for authentication
+- `app/blueprints/bp_admin.py` for administration
+
+The legacy `app/routes.py` import path still exists as a thin compatibility wrapper.
+Details are documented in [docs/project-structure.md](docs/project-structure.md).
+
 ## Permission System
 The application now uses a permission-based model instead of direct role checks.
 Full details are documented in [docs/permission-system.md](docs/permission-system.md).
@@ -166,7 +179,7 @@ Ein gutes Tutorial findest du hier:
 https://www.digitalocean.com/community/tutorials/how-to-serve-flask-applications-with-gunicorn-and-nginx-on-ubuntu-22-04
 
 ## Usage
-Detailed usage instructions will be announced in future updates. The system will provide an intuitive interface for users to interact with the ticketing system seamlessly.
+Open the application after setup, sign in, and use the home page ticket form or the ticket administration views depending on your permissions.
 
 ## Contributing
 We welcome contributions! If you're interested in contributing, you can:
