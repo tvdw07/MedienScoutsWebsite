@@ -2,7 +2,7 @@ import os
 from urllib.parse import unquote
 
 from PIL import Image
-from flask import abort, current_app, flash, redirect, render_template, send_from_directory, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user, login_required, logout_user
 from werkzeug.utils import secure_filename
 
@@ -10,6 +10,7 @@ import app.routes as legacy_routes
 from app.decorators import permission_required
 from app.forms import EditProfileForm
 from app.models import db
+from app.ticket_notifications import mark_ticket_assignment_notification_read
 
 from . import bp_main
 
@@ -184,3 +185,14 @@ def send_password_reset_email():
         flash('User not found.', 'danger')
     return redirect(url_for('main.profile'))
 
+
+@bp_main.route('/ticket-assignment-notifications/<int:notification_id>/dismiss', methods=['POST'])
+@login_required
+def dismiss_ticket_assignment_notification(notification_id):
+    notification = mark_ticket_assignment_notification_read(notification_id, current_user.id)
+    if not notification:
+        flash('Notification not found.', 'danger')
+        return redirect(request.referrer or url_for('main.home'))
+
+    db.session.commit()
+    return redirect(request.referrer or url_for('main.home'))

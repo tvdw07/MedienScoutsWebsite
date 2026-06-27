@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Tickets{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">Tickets</h1>
+            <p class="text-muted mb-0">Alle Tickets, die noch nicht im Archiv liegen.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.admin_panel') }}">
+            <i class="fa-solid fa-arrow-left me-1"></i>Zurück zum Admin Panel
+        </a>
+    </div>
+
+    <div class="alert alert-info" role="alert">
+        <strong>Anzahl nicht archivierter Tickets: {{ ticket_count }}</strong>
+    </div>
+
+    <div class="mb-4">
+        <input type="text" id="ticketSearch" class="form-control"
+               placeholder="Suche nach Typ, Status, Name, Beschreibung oder Ticket-ID...">
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" id="ticketsTable">
+            <thead class="table-light">
+            <tr>
+                <th>Typ</th>
+                <th>Status</th>
+                <th>Bearbeitet von</th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Beschreibung</th>
+                <th>Erstellt</th>
+                <th class="text-end">Aktion</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for ticket in tickets %}
+            <tr>
+                <td>
+                    <span class="badge {{ ticket.ticket_badge_class }}">{{ ticket.ticket_label }}</span>
+                </td>
+                <td>
+                    <span class="badge {{ ticket.status_badge_class }}">{{ ticket.status_label }}</span>
+                </td>
+                <td>{{ ticket.assigned_user_label or '-' }}</td>
+                <td>{{ ticket.id }}</td>
+                <td>{{ ticket.ticket_name or '-' }}</td>
+                <td class="text-break">{{ ticket.ticket_summary or '-' }}</td>
+                <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td class="text-end">
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="{{ url_for('main.ticket_details', ticket_type=ticket.type, ticket_id=ticket.id) }}">
+                        <i class="fa-solid fa-eye me-1"></i>Details
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">Keine Tickets vorhanden.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const ticketSearch = document.getElementById('ticketSearch');
+    if (ticketSearch) {
+        ticketSearch.addEventListener('input', function () {
+            const searchValue = this.value.toLowerCase();
+            document.querySelectorAll('#ticketsTable tbody tr').forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(searchValue) ? '' : 'none';
+            });
+        });
+    }
+</script>
+{% endblock %}

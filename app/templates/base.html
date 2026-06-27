@@ -45,6 +45,7 @@
                         <ul class="dropdown-menu" aria-labelledby="adminDropdown">
                             {% if current_user.has_permission('admin.view_statistics') %}
                             <li><a class="dropdown-item" href="{{ url_for('admin.admin_panel') }}">Admin Panel</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin.tickets_administration') }}">Tickets</a></li>
                             {% endif %}
                             {% if current_user.has_permission('roles.view') %}
                             <li><a class="dropdown-item" href="{{ url_for('admin.roles_administration') }}">Roles</a></li>
@@ -80,7 +81,7 @@
             {% if messages %}
             <div class="alert-container">
                 {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                <div class="flash-message alert alert-{{ category }} alert-dismissible fade show" role="alert">
                     {{ message }}
                     <button aria-label="Close" class="btn-close" data-bs-dismiss="alert" type="button"></button>
                 </div>
@@ -88,6 +89,27 @@
             </div>
             {% endif %}
             {% endwith %}
+            {% if ticket_assignment_notifications %}
+            <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080; max-width: 380px; width: 100%;">
+                {% for notification in ticket_assignment_notifications %}
+                <div class="alert alert-info shadow-sm mb-2" role="alert">
+                    <div class="d-flex justify-content-between gap-3 align-items-start">
+                        <div>
+                            <div class="fw-semibold mb-1">Ticket zugewiesen</div>
+                            <div class="small mb-2">{{ notification.message }}</div>
+                            <a class="small" href="{{ url_for('main.ticket_details', ticket_type=notification.ticket_type, ticket_id=notification.ticket_id) }}">
+                                Zum Ticket
+                            </a>
+                        </div>
+                        <form method="POST" action="{{ url_for('main.dismiss_ticket_assignment_notification', notification_id=notification.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn-close" aria-label="Benachrichtigung schlieÃŸen"></button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
             {% block content %}{% endblock %}
         </div>
     </div>

@@ -3,6 +3,7 @@
 from email_tools import (
     notify_admin,
     notify_client,
+    notify_user_about_ticket_assignment,
     notify_user_about_ticket_change,
     send_reset_email,
     send_ticket_link,
@@ -14,8 +15,8 @@ __all__ = [
     'bp_main',
     'notify_admin',
     'notify_client',
+    'notify_user_about_ticket_assignment',
     'notify_user_about_ticket_change',
     'send_reset_email',
     'send_ticket_link',
 ]
-

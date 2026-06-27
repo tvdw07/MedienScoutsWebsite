@@ -117,11 +117,21 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return db.session.get(User, int(user_id))
 
     @app.context_processor
     def inject_user():
         return dict(current_user=current_user)
+
+    @app.context_processor
+    def inject_ticket_assignment_notifications():
+        from .ticket_notifications import get_unread_ticket_assignment_notifications
+
+        if not current_user.is_authenticated:
+            return dict(ticket_assignment_notifications=[])
+        return dict(
+            ticket_assignment_notifications=get_unread_ticket_assignment_notifications(current_user.id)
+        )
 
     @app.errorhandler(401)
     def unauthorized(e):

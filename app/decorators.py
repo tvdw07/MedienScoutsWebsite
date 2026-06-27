@@ -4,7 +4,7 @@ from werkzeug.routing import BuildError
 from flask import abort, current_app, flash, redirect, request, url_for
 from flask_login import current_user
 
-from app import ProblemTicketUser, TrainingTicketUser, MiscTicketUser, MediaConsultingTicketUser
+from app.ticket_assignments import get_current_ticket_assignee
 
 
 def _login_redirect():
@@ -80,20 +80,8 @@ def ticket_owner_required(f):
         ticket_id = kwargs.get('ticket_id')
         ticket_type = kwargs.get('ticket_type') or request.form.get('ticket_type') or request.args.get('ticket_type')
 
-        # Determine the ticket type and check if the current user is the owner
-        if ticket_type == 'problem':
-            ticket_user = ProblemTicketUser.query.filter_by(problem_ticket_id=ticket_id, user_id=current_user.id).first()
-        elif ticket_type == 'training':
-            ticket_user = TrainingTicketUser.query.filter_by(training_ticket_id=ticket_id, user_id=current_user.id).first()
-        elif ticket_type == 'misc':
-            ticket_user = MiscTicketUser.query.filter_by(misc_ticket_id=ticket_id, user_id=current_user.id).first()
-        elif ticket_type == 'medienberatung':
-            ticket_user = MediaConsultingTicketUser.query.filter_by(
-                media_consulting_ticket_id=ticket_id,
-                user_id=current_user.id,
-            ).first()
-        else:
-            ticket_user = None
+        ticket_assignee = get_current_ticket_assignee(ticket_type, ticket_id)
+        ticket_user = ticket_assignee if ticket_assignee and ticket_assignee.id == current_user.id else None
 
         if not ticket_user:  # If the user is not the owner, deny access
             flash('You do not have permission to access this ticket.', 'danger')

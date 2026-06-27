@@ -59,6 +59,13 @@ Admin-facing mutation routes also enforce self-protection: a user cannot remove
 the last admin-related permission source from their own account or from a role
 they currently use to obtain admin access.
 
+The `tickets.assign` permission is used for manual ticket assignment,
+reassignment, and unassignment.
+
+The `admin.view_statistics` permission also exposes the admin ticket overview,
+which lists all tickets that are not yet archived and shows the current
+Bearbeiter for each ticket.
+
 In this repository the protected routes live in:
 
 - `app/blueprints/main/pages.py`

@@ -21,6 +21,11 @@ from app.models import (
     User,
     UserPermissionOverride,
 )
+from app.ticket_assignments import (
+    count_non_archived_tickets,
+    get_all_non_archived_tickets,
+    get_current_ticket_assignee,
+)
 
 bp_admin = Blueprint('admin', __name__)
 
@@ -35,6 +40,16 @@ ADMIN_ACCESS_PERMISSIONS = {
     'admin.view_statistics',
     'admin.manage_settings',
 }
+
+
+def _user_display_name(user):
+    if not user:
+        return None
+
+    full_name = f'{user.first_name} {user.last_name}'.strip()
+    if full_name:
+        return f'{full_name} ({user.username})'
+    return user.username
 
 
 def _to_iso(value):
@@ -323,7 +338,21 @@ def admin_panel():
         'admin/admin_panel.html',
         total_tickets=total_tickets,
         solved_tickets=solved_tickets,
+        non_archived_ticket_count=count_non_archived_tickets(),
         user_stats=user_stats,
+    )
+
+
+@bp_admin.route('/tickets/administration')
+@permission_required('admin.view_statistics')
+def tickets_administration():
+    tickets = get_all_non_archived_tickets()
+    for ticket in tickets:
+        ticket.assigned_user_label = _user_display_name(get_current_ticket_assignee(ticket.type, ticket.id))
+    return render_template(
+        'admin/tickets.html',
+        tickets=tickets,
+        ticket_count=len(tickets),
     )
 
 

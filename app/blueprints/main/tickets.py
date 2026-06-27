@@ -14,79 +14,44 @@ from app.models import (
     TicketHistory,
     TrainingTicket,
     TrainingTicketUser,
+    User,
     db,
+)
+from app.ticket_assignments import (
+    clear_ticket_assignments,
+    count_open_tickets,
+    decorate_ticket,
+    get_current_ticket_assignee,
+    get_open_tickets_by_type,
+    get_ticket_assignment_config,
+    get_ticket_model,
+    set_ticket_assignee,
+)
+from app.ticket_notifications import (
+    create_ticket_assignment_notification,
+    mark_ticket_assignment_notifications_read,
 )
 
 from . import bp_main
 from .utils import build_send_ticket_formdata, log_ticket_message, parse_optional_datetime, save_ticket_photo
 
-TICKET_CONFIG = {
-    'problem': {
-        'model': ProblemTicket,
-        'association': ProblemTicketUser,
-        'association_field': 'problem_ticket_id',
-        'description_attr': 'problem_description',
-    },
-    'training': {
-        'model': TrainingTicket,
-        'association': TrainingTicketUser,
-        'association_field': 'training_ticket_id',
-        'description_attr': 'training_reason',
-    },
-    'misc': {
-        'model': MiscTicket,
-        'association': MiscTicketUser,
-        'association_field': 'misc_ticket_id',
-        'description_attr': 'message',
-    },
-    'medienberatung': {
-        'model': MediaConsultingTicket,
-        'association': MediaConsultingTicketUser,
-        'association_field': 'media_consulting_ticket_id',
-        'description_attr': None,
-    },
-}
-
 
 def _get_ticket_config(ticket_type):
-    return TICKET_CONFIG.get(ticket_type)
+    return get_ticket_assignment_config(ticket_type)
 
 
 def _load_ticket(ticket_type, ticket_id):
-    ticket_config = _get_ticket_config(ticket_type)
-    if not ticket_config:
+    ticket_model = get_ticket_model(ticket_type)
+    if not ticket_model:
         return None
-    return ticket_config['model'].query.get(ticket_id)
+    return db.session.get(ticket_model, ticket_id)
 
 
-def _decorate_ticket(ticket, ticket_type):
-    ticket.type = ticket_type
-    description_attr = TICKET_CONFIG[ticket_type]['description_attr']
-    if description_attr:
-        ticket.description = getattr(ticket, description_attr)
-
-
-def _create_ticket_user(ticket_type, ticket_id, user_id):
-    ticket_config = _get_ticket_config(ticket_type)
-    if not ticket_config:
+def _user_display_name(user):
+    if not user:
         return None
-
-    association_kwargs = {
-        ticket_config['association_field']: ticket_id,
-        'user_id': user_id,
-    }
-    return ticket_config['association'](**association_kwargs)
-
-
-def _load_open_tickets(ticket_type):
-    ticket_config = _get_ticket_config(ticket_type)
-    if not ticket_config:
-        return []
-
-    tickets = ticket_config['model'].query.filter_by(status_id=1).all()
-    for ticket in tickets:
-        _decorate_ticket(ticket, ticket_type)
-    return tickets
+    full_name = f'{user.first_name} {user.last_name}'.strip()
+    return full_name or user.username
 
 
 def _load_user_tickets(ticket_type, user_id):
@@ -96,15 +61,69 @@ def _load_user_tickets(ticket_type, user_id):
 
     model = ticket_config['model']
     association = ticket_config['association']
-    association_field = ticket_config['association_field']
 
     tickets = model.query.join(association).filter(
         association.user_id == user_id,
         model.status_id != 4,
     ).all()
     for ticket in tickets:
-        _decorate_ticket(ticket, ticket_type)
+        decorate_ticket(ticket, ticket_type)
     return tickets
+
+
+def _apply_ticket_assignment(ticket_type, ticket, assignee_user, actor_user):
+    old_assignee = get_current_ticket_assignee(ticket_type, ticket.id)
+    actor_name = _user_display_name(actor_user)
+    new_assignee_name = _user_display_name(assignee_user)
+    old_assignee_name = _user_display_name(old_assignee)
+
+    if old_assignee and assignee_user and old_assignee.id == assignee_user.id and ticket.status_id == 2:
+        return False, f'Ticket ist bereits {new_assignee_name} zugewiesen.'
+    if not old_assignee and assignee_user is None and ticket.status_id == 1:
+        return False, 'Ticket ist bereits unzugewiesen.'
+
+    if old_assignee and assignee_user and old_assignee.id != assignee_user.id:
+        mark_ticket_assignment_notifications_read(old_assignee.id, ticket_type, ticket.id)
+    elif old_assignee and assignee_user is None:
+        mark_ticket_assignment_notifications_read(old_assignee.id, ticket_type, ticket.id)
+
+    if assignee_user is None:
+        clear_ticket_assignments(ticket_type, ticket.id)
+        ticket.status_id = 1
+        history_message = (
+            f'Ticketzuweisung von {old_assignee_name} aufgehoben.'
+            if old_assignee_name
+            else 'Ticketzuweisung aufgehoben.'
+        )
+        flash_message = 'Ticketzuweisung aufgehoben.'
+    else:
+        set_ticket_assignee(ticket_type, ticket.id, assignee_user)
+        ticket.status_id = 2
+        if old_assignee_name and old_assignee.id != assignee_user.id:
+            history_message = f'Ticket von {old_assignee_name} zu {new_assignee_name} neu zugewiesen.'
+        else:
+            history_message = f'Ticket an {new_assignee_name} zugewiesen.'
+        flash_message = f'Ticket an {new_assignee_name} zugewiesen.'
+
+    db.session.commit()
+
+    if assignee_user:
+        create_ticket_assignment_notification(
+            assignee_user,
+            ticket_type,
+            ticket.id,
+            assigned_by_name=actor_name,
+        )
+        db.session.commit()
+        legacy_routes.notify_user_about_ticket_assignment(
+            ticket,
+            ticket_type,
+            assignee_user,
+            assigned_by_name=actor_name,
+        )
+
+    log_ticket_message(ticket_type, ticket.id, history_message, actor_name)
+    return True, flash_message
 
 
 @bp_main.route('/ticketverwaltung')
@@ -114,10 +133,11 @@ def ticket_verwaltung():
     can_view_all_tickets = current_user.has_permission('tickets.view_all')
 
     if can_view_all_tickets:
-        open_problem_tickets = _load_open_tickets('problem')
-        open_training_tickets = _load_open_tickets('training')
-        open_misc_tickets = _load_open_tickets('misc')
-        open_media_consulting_tickets = _load_open_tickets('medienberatung')
+        open_tickets_by_type = get_open_tickets_by_type()
+        open_problem_tickets = open_tickets_by_type['problem']
+        open_training_tickets = open_tickets_by_type['training']
+        open_misc_tickets = open_tickets_by_type['misc']
+        open_media_consulting_tickets = open_tickets_by_type['medienberatung']
     else:
         open_problem_tickets = []
         open_training_tickets = []
@@ -130,11 +150,7 @@ def ticket_verwaltung():
     my_media_consulting_tickets = _load_user_tickets('medienberatung', current_user.id)
 
     my_tickets = my_problem_tickets + my_training_tickets + my_misc_tickets + my_media_consulting_tickets
-    total_open_tickets = (
-        len(open_problem_tickets) + len(open_training_tickets) + len(open_misc_tickets) + len(open_media_consulting_tickets)
-        if can_view_all_tickets
-        else 0
-    )
+    total_open_tickets = count_open_tickets() if can_view_all_tickets else 0
 
     return render_template(
         'tickets/ticketverwaltung.html',
@@ -154,13 +170,21 @@ def ticket_verwaltung():
 def ticket_details(ticket_type, ticket_id):
     """Display the details of a specific ticket."""
     ticket = _load_ticket(ticket_type, ticket_id)
-    if ticket_type not in TICKET_CONFIG:
+    ticket_config = _get_ticket_config(ticket_type)
+    if not ticket_config:
         flash('Ungultiger Ticket-Typ.', 'danger')
         return redirect(url_for('main.ticket_verwaltung'))
 
     if not ticket:
         flash('Ticket nicht gefunden.', 'danger')
         return redirect(url_for('main.ticket_verwaltung'))
+
+    assigned_user = get_current_ticket_assignee(ticket_type, ticket_id)
+    assigned_user_name = _user_display_name(assigned_user)
+    assignable_users = []
+    can_assign_ticket = current_user.has_permission('tickets.assign') and ticket.status_id != 4
+    if can_assign_ticket:
+        assignable_users = User.query.filter_by(active=True).order_by(User.last_name, User.first_name, User.username).all()
 
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket_id).order_by(
         TicketHistory.created_at
@@ -170,6 +194,10 @@ def ticket_details(ticket_type, ticket_id):
         'tickets/ticket_details.html',
         ticket=ticket,
         ticket_type=ticket_type,
+        assigned_user=assigned_user,
+        assigned_user_name=assigned_user_name,
+        assignable_users=assignable_users,
+        can_assign_ticket=can_assign_ticket,
         ticket_history=ticket_history,
         response_form=response_form,
         response_form_action=url_for('main.submit_response', ticket_id=ticket.id),
@@ -180,29 +208,71 @@ def ticket_details(ticket_type, ticket_id):
 @permission_required('tickets.claim')
 def claim_ticket(ticket_id):
     """A user claims a ticket."""
-    user_id = current_user.id
     ticket_type = request.form.get('ticket_type')
-    ticket_config = _get_ticket_config(ticket_type)
-    if not ticket_config:
+    ticket = _load_ticket(ticket_type, ticket_id)
+    if not _get_ticket_config(ticket_type):
         current_app.logger.error(f'Invalid ticket type: {ticket_type}')
         flash('Ungultiger Ticket-Typ.', 'danger')
         return redirect(url_for('main.ticket_verwaltung'))
 
-    ticket = ticket_config['model'].query.get(ticket_id)
     if not ticket:
         flash('Ticket nicht gefunden.', 'danger')
         return redirect(url_for('main.ticket_verwaltung'))
 
+    if ticket.status_id != 1:
+        flash('Ticket kann nicht mehr übernommen werden.', 'danger')
+        return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+
     try:
-        ticket_user = _create_ticket_user(ticket_type, ticket_id, user_id)
-        ticket.status_id = 2
-        db.session.add(ticket_user)
-        db.session.commit()
-        flash('Ticket erfolgreich ubernommen.', 'success')
+        changed, flash_message = _apply_ticket_assignment(ticket_type, ticket, current_user, current_user)
+        if changed:
+            flash('Ticket erfolgreich ubernommen.', 'success')
+        else:
+            flash(flash_message, 'info')
     except Exception as exc:
         db.session.rollback()
         flash('Fehler beim Ubernehmen des Tickets.', 'danger')
         current_app.logger.error(f'Fehler beim Ubernehmen des Tickets: {exc}')
+
+    return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+
+
+@bp_main.route('/ticket/<int:ticket_id>/assign', methods=['POST'])
+@permission_required('tickets.assign')
+@ticket_owner_required
+def assign_ticket(ticket_id):
+    ticket_type = request.form.get('ticket_type')
+    ticket = _load_ticket(ticket_type, ticket_id)
+    if not _get_ticket_config(ticket_type):
+        flash('Ungultiger Ticket-Typ.', 'danger')
+        return redirect(url_for('main.ticket_verwaltung'))
+
+    if not ticket:
+        flash('Ticket nicht gefunden.', 'danger')
+        return redirect(url_for('main.ticket_verwaltung'))
+
+    if ticket.status_id == 4:
+        flash('Ticket kann nicht mehr zugewiesen werden.', 'danger')
+        return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+
+    assignee_value = (request.form.get('assignee_id') or '').strip()
+    assignee = None
+    if assignee_value:
+        if not assignee_value.isdigit():
+            flash('Ungultige Benutzerzuweisung.', 'danger')
+            return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+        assignee = db.session.get(User, int(assignee_value))
+        if not assignee or not assignee.active:
+            flash('Der gewahlte Benutzer ist nicht aktiv oder existiert nicht.', 'danger')
+            return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+
+    try:
+        changed, flash_message = _apply_ticket_assignment(ticket_type, ticket, assignee, current_user)
+        flash(flash_message, 'success' if changed else 'info')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error(f'Fehler beim Zuweisen des Tickets: {exc}')
+        flash('Fehler beim Zuweisen des Tickets.', 'danger')
 
     return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
@@ -214,7 +284,7 @@ def request_help(ticket_id):
     """Request help for a specific ticket."""
     ticket_type = request.form.get('ticket_type')
     ticket = _load_ticket(ticket_type, ticket_id)
-    if ticket_type not in TICKET_CONFIG or not ticket:
+    if not _get_ticket_config(ticket_type) or not ticket:
         flash('Invalid ticket type.', 'danger')
         return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
@@ -268,7 +338,7 @@ def mark_ticket_solved(ticket_id):
     ticket_type = request.form.get('ticket_type')
     ticket = _load_ticket(ticket_type, ticket_id)
 
-    if ticket_type not in TICKET_CONFIG:
+    if not _get_ticket_config(ticket_type):
         flash('Invalid ticket type.', 'danger')
         return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
@@ -427,4 +497,3 @@ def view_ticket(token):
         response_form=response_form,
         response_form_action=url_for('main.view_ticket', token=token),
     )
-

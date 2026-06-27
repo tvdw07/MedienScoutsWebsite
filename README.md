@@ -6,8 +6,9 @@ A comprehensive ticketing system with multiple ticket types and user management.
 - Multiple ticket types for different use cases
 - User-friendly interface for ticket creation, management, and tracking
 - Permission-based access control with role grouping
-- Administrative panel for configuration and user management
+- Administrative panel for configuration, user management, and ticket overview
 - Logging and history tracking for tickets
+- Manual ticket assignment with email and login-time notifications
 
 ## Project Structure
 The application is split into focused blueprints instead of a single route module:
@@ -16,6 +17,8 @@ The application is split into focused blueprints instead of a single route modul
 - `app/blueprints/main/tickets.py` for ticket submission and ticket handling
 - `app/blueprints/main/account.py` for profile and session actions
 - `app/blueprints/main/utils.py` for shared ticket helpers
+- `app/ticket_assignments.py` for current ticket ownership logic and ticket overview helpers
+- `app/ticket_notifications.py` for unread assignment notifications
 - `app/blueprints/bp_auth.py` for authentication
 - `app/blueprints/bp_admin.py` for administration
 

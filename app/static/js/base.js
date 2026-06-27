@@ -8,7 +8,7 @@ console.log('base.js loaded');
 // ===================================================================
 // Hide flash messages after 5 seconds
 setTimeout(function() {
-    var alerts = document.querySelectorAll('.alert');
+    var alerts = document.querySelectorAll('.flash-message');
     alerts.forEach(function(alert) {
         alert.style.display = 'none';
     });

@@ -1,8 +1,10 @@
 from flask import current_app, render_template
+from flask_login import current_user
 
 from app.decorators import permission_required
 from app.legal import build_legal_context
 from app.models import User
+from app.ticket_notifications import get_unread_ticket_assignment_notifications
 
 from . import bp_main
 
@@ -11,6 +13,18 @@ from . import bp_main
 def inject_legal_context():
     return {
         'legal': build_legal_context(current_app.config),
+    }
+
+
+@bp_main.context_processor
+def inject_ticket_assignment_notifications():
+    if not current_user.is_authenticated:
+        return {
+            'ticket_assignment_notifications': [],
+        }
+
+    return {
+        'ticket_assignment_notifications': get_unread_ticket_assignment_notifications(current_user.id),
     }
 
 
@@ -57,4 +71,3 @@ def archiv():
         solved_misc_tickets=solved_misc_tickets,
         solved_media_consulting_tickets=solved_media_consulting_tickets,
     )
-

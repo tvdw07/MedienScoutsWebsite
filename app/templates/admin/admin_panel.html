@@ -6,6 +6,14 @@
 <div class="container mt-4">
     <h1 class="mb-4">Admin Panel</h1>
 
+    <div class="mb-4">
+        <h2>Tickets</h2>
+        <p>Nicht archivierte Tickets: <strong>{{ non_archived_ticket_count }}</strong></p>
+        <a class="btn btn-primary" href="{{ url_for('admin.tickets_administration') }}">
+            <i class="fa-solid fa-ticket me-1"></i>Tickets ansehen
+        </a>
+    </div>
+
     <div class="mb-3">
         <h2>Statistics</h2>
         <p>Total Tickets in Last 6 Months: <strong>{{ total_tickets }}</strong></p>

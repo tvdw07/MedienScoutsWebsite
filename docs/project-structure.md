@@ -10,14 +10,15 @@ The `main` blueprint is split by concern:
 - `app/blueprints/main/tickets.py` for ticket creation and ticket workflow actions
 - `app/blueprints/main/account.py` for profile, logout, and password reset actions
 - `app/blueprints/main/utils.py` for shared ticket helpers
+- `app/ticket_assignments.py` for ticket ownership helpers and ticket overview data
+- `app/ticket_notifications.py` for unread assignment notifications
 
 ## Other Blueprints
 
 - `app/blueprints/bp_auth.py` for login and password reset flows
-- `app/blueprints/bp_admin.py` for administration views and JSON APIs
+- `app/blueprints/bp_admin.py` for administration views, the ticket overview, and JSON APIs
 
 ## Compatibility Layer
 
 `app/routes.py` now only re-exports the main blueprint and email helper hooks for older imports and tests.
 New code should import the blueprint from `app.blueprints.main`.
-

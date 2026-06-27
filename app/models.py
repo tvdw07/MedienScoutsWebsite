@@ -43,6 +43,11 @@ class User(UserMixin, db.Model):
         back_populates='user',
         cascade='all, delete-orphan',
     )
+    ticket_assignment_notifications = db.relationship(
+        'TicketAssignmentNotification',
+        back_populates='user',
+        cascade='all, delete-orphan',
+    )
     roles = association_proxy('user_roles', 'role', creator=lambda role: UserRole(role=role))
 
     def set_password(self, password):
@@ -320,6 +325,18 @@ class TicketHistory(db.Model):
         self.ticket_id = ticket_id
         self.message = message
         self.author_type = author_type
+
+
+class TicketAssignmentNotification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    ticket_type = db.Column(db.String(50), nullable=False)
+    ticket_id = db.Column(db.Integer, nullable=False, index=True)
+    message = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    read_at = db.Column(db.DateTime, nullable=True, index=True)
+
+    user = db.relationship('User', back_populates='ticket_assignment_notifications')
 
 
 class Permission(db.Model):

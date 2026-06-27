@@ -494,6 +494,87 @@ notify_user_about_ticket_change_template = EmailTemplate(
     """
 )
 
+# Ticket Assignment Email Template
+ticket_assignment_template = EmailTemplate(
+    subject="Ticket zugewiesen",
+    template_content="""\
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+      <style>
+        body {{
+          font-family: 'Roboto', Arial, sans-serif;
+          background-color: #f2f4f8;
+          padding: 20px;
+          color: #333;
+        }}
+        .email-container {{
+          max-width: 600px;
+          margin: 0 auto;
+          background: #fff;
+          border-radius: 10px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }}
+        .email-header {{
+          background-color: #1f7ae0;
+          padding: 25px;
+          text-align: center;
+          color: #fff;
+        }}
+        .email-header h1 {{
+          margin: 0;
+          font-size: 24px;
+          font-weight: 500;
+        }}
+        .email-content {{
+          padding: 30px;
+          font-size: 16px;
+        }}
+        .btn {{
+          display: inline-block;
+          padding: 12px 25px;
+          background-color: #007BFF;
+          color: #fff;
+          text-decoration: none;
+          border-radius: 6px;
+          margin-top: 20px;
+          font-weight: 500;
+        }}
+        .btn:hover {{
+          background-color: #0056b3;
+        }}
+        .email-footer {{
+          background: #f9f9f9;
+          text-align: center;
+          padding: 15px;
+          font-size: 12px;
+          color: #777;
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="email-container">
+        <div class="email-header">
+          <h1>Ticket zugewiesen</h1>
+        </div>
+        <div class="email-content">
+          <p>Hallo,</p>
+          <p>Dir wurde das {ticket_type_label}-Ticket #{ticket_id} zugewiesen.</p>
+          {assigned_by_block}
+          <p style="text-align: center;"><a href="{link}" class="btn">Ticket öffnen</a></p>
+        </div>
+        <div class="email-footer">
+          <p>&copy; {current_year} Medienscouts | All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+)
+
 # Reset Password Email Template
 reset_password_template = EmailTemplate(
     subject="Password Reset Request",
@@ -637,6 +718,31 @@ def notify_user_about_ticket_change(ticket, message, ticket_type):
             current_app.logger.info(f"Sent user notification about ticket {ticket.id}")
         else:
             current_app.logger.error(f"User not found for ticket {ticket.id}")
+
+
+def notify_user_about_ticket_assignment(ticket, ticket_type, user, assigned_by_name=None):
+    if not user:
+        current_app.logger.error(f"No user provided for ticket assignment notification for ticket {ticket.id}")
+        return
+
+    ticket_type_label_map = {
+        'problem': 'Problem',
+        'training': 'Fortbildung',
+        'misc': 'Sonstiges',
+        'medienberatung': 'Medienberatung',
+    }
+    ticket_type_label = ticket_type_label_map.get(ticket_type, 'Ticket')
+    link = url_for('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
+    assigned_by_block = f'<p>Zuordnung durch: {assigned_by_name}</p>' if assigned_by_name else ''
+    send_email(
+        ticket_assignment_template,
+        user.email,
+        ticket_type_label=ticket_type_label,
+        ticket_id=ticket.id,
+        assigned_by_block=assigned_by_block,
+        link=link,
+    )
+    current_app.logger.info(f"Sent ticket assignment notification for ticket {ticket.id} to user {user.id}")
 
 
 def send_reset_email(user):
