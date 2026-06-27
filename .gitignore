@@ -1,6 +1,0 @@
-.env
-app.db
-logs/
-app/static/uploads/
-/migrations/
-/.idea/
