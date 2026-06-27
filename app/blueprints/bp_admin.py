@@ -6,7 +6,6 @@ from flask_login import current_user
 from app.decorators import permission_required
 from app.models import (
     db,
-    Message,
     MiscTicket,
     MiscTicketUser,
     Permission,
@@ -21,7 +20,6 @@ from app.models import (
     User,
     UserPermissionOverride,
 )
-from app.routes import get_date_time
 
 bp_admin = Blueprint('admin', __name__)
 
@@ -699,21 +697,6 @@ def update_role_permissions(role_id):
     else:
         payload['message'] = f'Permission {permission.name} removed from role.'
     return jsonify(payload)
-
-
-@bp_admin.route('/delete_message/<int:message_id>', methods=['POST'])
-@permission_required('admin.manage_settings')
-def delete_message(message_id):
-    message = Message.query.get(message_id)
-    if message:
-        message.content = f'This Post was deleted by the Admin on {get_date_time()}'
-        message.deleted = True
-        db.session.commit()
-        current_app.logger.info(f'Message deleted: {message_id}')
-        return jsonify({'success': True})
-
-    current_app.logger.error(f'Message not found: {message_id}')
-    return jsonify({'error': 'Message not found'}), 404
 
 
 @bp_admin.route('/ticket/<int:ticket_id>/delete', methods=['POST'])

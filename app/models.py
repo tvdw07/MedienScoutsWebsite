@@ -142,16 +142,6 @@ class User(UserMixin, db.Model):
         return None
 
 
-# Message model
-class Message(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    author = db.Column(db.String(64), nullable=False)
-    role = db.Column(db.String(64), nullable=False)  # Role of the author
-    content = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, index=True, default=datetime.now())
-    deleted = db.Column(db.Boolean, default=False)  # Indicates if the message is deleted
-
-
 # Ticket status model
 class TicketStatus(db.Model):
     id = db.Column(db.Integer, primary_key=True)

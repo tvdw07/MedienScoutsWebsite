@@ -171,17 +171,6 @@ def build_legal_context(config):
             ],
         ),
         _ticket_category(
-            'Forum-Beiträge',
-            'Das Forum speichert Beiträge für den internen Austausch zwischen angemeldeten Nutzern.',
-            [
-                'Autorname',
-                'angezeigte Rolle',
-                'Beitragstext',
-                'Zeitstempel',
-                'Kennzeichen für gelöschte Beiträge',
-            ],
-        ),
-        _ticket_category(
             'Anhänge',
             'Hochgeladene Dateien werden nach technischen Prüfungen im konfigurierten Upload-Verzeichnis abgelegt.',
             [
@@ -218,7 +207,7 @@ def build_legal_context(config):
         'Authentifizierung und Sitzungskontrolle',
         'Verwaltung von Benutzerkonten, Rollen und Berechtigungen',
         'Entgegennahme, Bearbeitung und Nachverfolgung von Tickets',
-        'Speicherung von Antworten, Verlaufseinträgen und Forum-Beiträgen',
+        'Speicherung von Antworten und Verlaufseinträgen',
         'Versand von Benachrichtigungen und Zurücksetzen von Passwörtern',
         'Betrieb, Absicherung und technische Fehleranalyse der Installation',
     ]

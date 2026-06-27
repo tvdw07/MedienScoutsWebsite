@@ -10,9 +10,9 @@ from flask import abort, flash, jsonify, redirect, render_template, request, ses
 from flask_login import logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
 from app.decorators import any_permission_required, permission_required, ticket_owner_required
-from app.forms import MessageForm, EditProfileForm
+from app.forms import EditProfileForm
 from app.legal import build_legal_context
-from app.models import db, Message, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
+from app.models import db, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, TicketHistory, User, RoleEnum, RankEnum
 from email_tools import send_ticket_link, notify_admin, notify_client, notify_user_about_ticket_change, send_reset_email
 
@@ -384,42 +384,6 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'success')
     return redirect(url_for('main.home'))
-
-
-@bp_main.route('/forum', methods=['GET', 'POST'])
-@login_required
-def forum():
-    form = MessageForm()
-    if form.validate_on_submit():
-        assigned_roles = sorted(current_user.roles, key=lambda role: role.name.lower())
-        role = ', '.join(role.name for role in assigned_roles) or 'User'
-        message = Message(author=current_user.username, role=role, content=form.content.data)
-        db.session.add(message)
-        db.session.commit()
-        flash('Your message has been posted.', 'success')
-        return redirect(url_for('main.forum'))
-
-    page = request.args.get('page', 1, type=int)
-    messages = Message.query.order_by(Message.timestamp.desc()).paginate(page=page, per_page=5)
-    return render_template('forum.html', form=form, messages=messages.items, pagination=messages)
-
-
-@bp_main.route('/load_more_messages/<int:page>', methods=['GET'])
-@login_required
-def load_more_messages(page):
-    messages = Message.query.order_by(Message.timestamp.desc()).paginate(page=page, per_page=5)
-    return jsonify({
-        'messages': [{
-            'id': message.id,
-            'author': message.author,
-            'role': message.role,
-            'content': message.content,
-            'timestamp': message.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-            'deleted': message.deleted
-        } for message in messages.items],
-        'more_messages': messages.has_next,
-        'can_delete_messages': current_user.has_permission('admin.manage_settings')
-    })
 
 
 @bp_main.route('/privacy_policy')

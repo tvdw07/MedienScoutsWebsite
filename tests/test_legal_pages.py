@@ -129,6 +129,7 @@ def test_legal_pages_render_configured_values(tmp_path):
     assert 'Build 4711' in impressum_html
     assert 'Tim von der Weppen' in impressum_html
     assert 'tim.vonderweppen@web.de' not in impressum_html
+    assert 'Forum' not in impressum_html
 
     privacy_response = client.get('/privacy_policy')
     privacy_html = privacy_response.get_data(as_text=True)
@@ -140,6 +141,7 @@ def test_legal_pages_render_configured_values(tmp_path):
     assert 'Rechtsgrundlage wird von der Betreiberkonfiguration vorgegeben.' in privacy_html
     assert 'Speicherdauer wird vom Betreiber je nach Installation festgelegt.' in privacy_html
     assert 'tim.vonderweppen@web.de' not in privacy_html
+    assert 'Forum' not in privacy_html
 
 
 def test_missing_optional_legal_values_do_not_break_pages(tmp_path):

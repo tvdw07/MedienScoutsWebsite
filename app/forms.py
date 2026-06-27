@@ -2,7 +2,6 @@ from flask import current_app
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
 from wtforms import StringField, PasswordField, SubmitField
-from wtforms.fields.simple import TextAreaField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
 from wtforms.validators import ValidationError
 import re
@@ -29,12 +28,6 @@ class PasswordPolicy:
             raise ValidationError('Password must contain at least one digit.')
         if self.require_special and not re.search(r'[!@#$%^&*(),.?":{}|<>_\-]', password):
             raise ValidationError('Password must contain at least one special character.')
-
-
-# Form for posting messages
-class MessageForm(FlaskForm):
-    content = TextAreaField('Message', validators=[DataRequired()])
-    submit = SubmitField('Post')
 
 
 # Form for user login

@@ -163,3 +163,22 @@ def test_user_without_ticket_rights_sees_no_internal_ticket_links(client, app):
     assert response.status_code == 200
     assert b'href="/ticketverwaltung"' not in response.data
     assert b'href="/archiv"' not in response.data
+
+
+def test_legacy_route_and_navigation_are_removed(client, app):
+    with app.app_context():
+        admin_role = db.session.query(Role).filter_by(name='Admin').one()
+        admin_id = create_user('admin-forum-check', 'admin-forum-check@example.com', roles=[admin_role], role=RoleEnum.ADMIN)
+
+    login_as(client, admin_id)
+    profile_response = client.get('/profile')
+    legacy_response = client.get('/forum')
+
+    assert profile_response.status_code == 200
+    assert b'href="/forum"' not in profile_response.data
+    assert legacy_response.status_code == 404
+
+
+def test_message_model_is_not_registered(app):
+    with app.app_context():
+        assert 'message' not in db.metadata.tables
