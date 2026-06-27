@@ -321,6 +321,7 @@ def members_administration():
         active_users=active_users,
         inactive_users=inactive_users,
         can_create_users=current_user.has_permission('users.create'),
+        can_manage_status=current_user.has_permission('users.deactivate'),
     )
 
 
@@ -436,6 +437,39 @@ def update_user_permissions(user_id):
         payload['message'] = f'Permission {permission.name} denied.'
     else:
         payload['message'] = f'Permission override for {permission.name} removed.'
+    return jsonify(payload)
+
+
+@bp_admin.route('/members/user/<int:user_id>/status', methods=['POST'])
+@permission_required('users.deactivate')
+def update_user_status(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    if 'active' not in data or not isinstance(data['active'], bool):
+        return jsonify({'error': 'active is required'}), 400
+
+    target_active = data['active']
+    if user.id == current_user.id and user.active != target_active:
+        return jsonify({'error': 'You cannot change your own active status.'}), 400
+
+    changed = user.active != target_active
+    if user.active != target_active:
+        user.active = target_active
+        if target_active:
+            user.active_from = datetime.now()
+            user.active_until = None
+        else:
+            user.active_until = datetime.now()
+        db.session.commit()
+
+    payload = _build_user_detail_payload(user)
+    if changed:
+        payload['message'] = 'User activated successfully.' if target_active else 'User deactivated successfully.'
+    else:
+        payload['message'] = 'User is already active.' if target_active else 'User is already inactive.'
     return jsonify(payload)
 
 

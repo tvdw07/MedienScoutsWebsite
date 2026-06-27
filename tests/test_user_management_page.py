@@ -110,6 +110,23 @@ def test_user_details_require_users_view(client, app):
     assert payload['capabilities']['can_manage_permissions'] is False
 
 
+def test_members_page_exposes_status_actions(client, app):
+    with app.app_context():
+        admin_role = Role.query.filter_by(name='Admin').one()
+        create_user('active-user', 'active@example.com')
+        create_user('inactive-user', 'inactive@example.com', active=False)
+        admin = create_user('admin-user', 'admin@example.com', roles=[admin_role], role=RoleEnum.ADMIN)
+        admin_id = admin.id
+
+    login_as(client, admin_id)
+    response = client.get('/members/administration')
+
+    assert response.status_code == 200
+    assert b'js-user-status' in response.data
+    assert b'data-user-active="false"' in response.data
+    assert b'data-user-active="true"' in response.data
+
+
 def test_roles_can_only_be_changed_with_manage_roles(client, app):
     with app.app_context():
         admin_role = Role.query.filter_by(name='Admin').one()
@@ -136,6 +153,63 @@ def test_roles_can_only_be_changed_with_manage_roles(client, app):
     assert remove_response.status_code == 200
     remove_payload = remove_response.get_json()
     assert remove_payload['active_roles'] == []
+
+
+def test_admin_can_toggle_user_active_state(client, app):
+    with app.app_context():
+        admin_role = Role.query.filter_by(name='Admin').one()
+        admin = create_user('admin-user', 'admin@example.com', roles=[admin_role], role=RoleEnum.ADMIN)
+        target_user = create_user('target-user', 'target@example.com')
+        admin_id = admin.id
+        target_user_id = target_user.id
+
+    login_as(client, admin_id)
+    deactivate_response = client.post(
+        f'/members/user/{target_user_id}/status',
+        json={'active': False},
+    )
+
+    assert deactivate_response.status_code == 200
+    deactivate_payload = deactivate_response.get_json()
+    assert deactivate_payload['user']['active'] is False
+    assert deactivate_payload['message'] == 'User deactivated successfully.'
+
+    with app.app_context():
+        stored_user = db.session.get(User, target_user_id)
+        assert stored_user.active is False
+        assert stored_user.active_until is not None
+
+    activate_response = client.post(
+        f'/members/user/{target_user_id}/status',
+        json={'active': True},
+    )
+
+    assert activate_response.status_code == 200
+    activate_payload = activate_response.get_json()
+    assert activate_payload['user']['active'] is True
+    assert activate_payload['message'] == 'User activated successfully.'
+
+    with app.app_context():
+        stored_user = db.session.get(User, target_user_id)
+        assert stored_user.active is True
+        assert stored_user.active_until is None
+        assert stored_user.active_from is not None
+
+
+def test_admin_cannot_change_own_active_state(client, app):
+    with app.app_context():
+        admin_role = Role.query.filter_by(name='Admin').one()
+        admin = create_user('admin-self-status', 'admin-self-status@example.com', roles=[admin_role], role=RoleEnum.ADMIN)
+        admin_id = admin.id
+
+    login_as(client, admin_id)
+    response = client.post(
+        f'/members/user/{admin_id}/status',
+        json={'active': False},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'You cannot change your own active status.'
 
 
 def test_permission_overrides_can_only_be_changed_with_manage_permissions(client, app):

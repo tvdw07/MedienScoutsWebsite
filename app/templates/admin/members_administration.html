@@ -38,10 +38,18 @@
                 <td><span class="badge bg-success">Active</span></td>
                 <td>{{ role_names|join(', ') if role_names else '-' }}</td>
                 <td class="text-end">
-                    <button type="button" class="btn btn-sm btn-outline-primary js-user-detail"
-                            data-user-id="{{ user.id }}">
-                        <i class="fa-solid fa-user-gear me-1"></i>Details
-                    </button>
+                    <div class="d-inline-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary js-user-detail"
+                                data-user-id="{{ user.id }}">
+                            <i class="fa-solid fa-user-gear me-1"></i>Details
+                        </button>
+                        {% if can_manage_status and user.id != current_user.id %}
+                        <button type="button" class="btn btn-sm btn-outline-warning js-user-status"
+                                data-user-id="{{ user.id }}" data-user-active="false">
+                            <i class="fa-solid fa-user-slash me-1"></i>Deactivate
+                        </button>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -71,10 +79,18 @@
                 <td><span class="badge bg-secondary">Inactive</span></td>
                 <td>{{ role_names|join(', ') if role_names else '-' }}</td>
                 <td class="text-end">
-                    <button type="button" class="btn btn-sm btn-outline-primary js-user-detail"
-                            data-user-id="{{ user.id }}">
-                        <i class="fa-solid fa-user-gear me-1"></i>Details
-                    </button>
+                    <div class="d-inline-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary js-user-detail"
+                                data-user-id="{{ user.id }}">
+                            <i class="fa-solid fa-user-gear me-1"></i>Details
+                        </button>
+                        {% if can_manage_status and user.id != current_user.id %}
+                        <button type="button" class="btn btn-sm btn-outline-success js-user-status"
+                                data-user-id="{{ user.id }}" data-user-active="true">
+                            <i class="fa-solid fa-user-check me-1"></i>Activate
+                        </button>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -530,6 +546,15 @@
         renderUserDetail(detail, detail.message || 'Permission override updated.');
     }
 
+    async function performStatusAction(userId, active) {
+        await fetchJson(`{{ url_for('admin.update_user_status', user_id=0) }}`.replace('0', userId), {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({active: active}),
+        });
+        window.location.reload();
+    }
+
     function selectedRoleIds() {
         return Array.from(createUserRoles.selectedOptions)
             .map((option) => parseInt(option.value, 10))
@@ -578,6 +603,17 @@
             event.preventDefault();
             try {
                 await performPermissionAction(permissionButton.dataset.permissionId, permissionButton.dataset.permissionAction);
+            } catch (error) {
+                renderAlert(error.message, 'danger');
+            }
+            return;
+        }
+
+        const statusButton = event.target.closest('.js-user-status');
+        if (statusButton) {
+            event.preventDefault();
+            try {
+                await performStatusAction(statusButton.dataset.userId, statusButton.dataset.userActive === 'true');
             } catch (error) {
                 renderAlert(error.message, 'danger');
             }
