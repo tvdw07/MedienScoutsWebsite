@@ -71,6 +71,20 @@ def _role_has_all_permissions(role):
     return {permission.name for permission in role.permissions} == _all_permission_names()
 
 
+def _resolve_role_payload_value(value):
+    if value is None:
+        return None
+
+    if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
+        return db.session.get(Role, int(value))
+
+    role_name = str(value).strip()
+    if not role_name:
+        return None
+
+    return Role.query.filter(db.func.lower(Role.name) == role_name.lower()).one_or_none()
+
+
 def _effective_permissions_from_state(roles, overrides, active=True):
     if not active:
         return set()
@@ -308,6 +322,7 @@ def members_administration():
         'admin/members_administration.html',
         active_users=active_users,
         inactive_users=inactive_users,
+        can_create_users=current_user.has_permission('users.create'),
     )
 
 
@@ -431,6 +446,22 @@ def update_user_permissions(user_id):
 def create_user():
     data = request.get_json(silent=True) or {}
 
+    username = str(data.get('username') or '').strip()
+    first_name = str(data.get('first_name') or username).strip()
+    last_name = str(data.get('last_name') or username).strip()
+    email = str(data.get('email') or '').strip()
+
+    if not username or not email:
+        return jsonify({'error': 'username and email are required'}), 400
+
+    duplicate_username = User.query.filter(db.func.lower(User.username) == username.lower()).one_or_none()
+    if duplicate_username:
+        return jsonify({'error': 'Username already exists'}), 400
+
+    duplicate_email = User.query.filter(db.func.lower(User.email) == email.lower()).one_or_none()
+    if duplicate_email:
+        return jsonify({'error': 'Email already exists'}), 400
+
     role_value = data.get('role') or RoleEnum.MEMBER.value
     rank_value = data.get('rank') or RankEnum.KEIN.value
 
@@ -445,10 +476,10 @@ def create_user():
         rank_enum = RankEnum.KEIN
 
     new_user = User(
-        username=data.get('username'),
-        first_name=data.get('first_name'),
-        last_name=data.get('last_name'),
-        email=data.get('email'),
+        username=username,
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
         role=role_enum,
         rank=rank_enum,
         active=True,
@@ -463,11 +494,21 @@ def create_user():
 
     db.session.add(new_user)
 
-    standard_role_name = LEGACY_ROLE_TO_STANDARD_ROLE_NAME.get(role_enum.value)
-    if standard_role_name:
-        standard_role = Role.query.filter_by(name=standard_role_name).one_or_none()
-        if standard_role:
-            new_user.roles.append(standard_role)
+    requested_roles = data.get('role_ids') or data.get('roles') or []
+    if isinstance(requested_roles, (int, str)):
+        requested_roles = [requested_roles]
+
+    if requested_roles:
+        for role_value in requested_roles:
+            role = _resolve_role_payload_value(role_value)
+            if role and not any(existing_role.id == role.id for existing_role in new_user.roles):
+                new_user.roles.append(role)
+    else:
+        standard_role_name = LEGACY_ROLE_TO_STANDARD_ROLE_NAME.get(role_enum.value)
+        if standard_role_name:
+            standard_role = Role.query.filter_by(name=standard_role_name).one_or_none()
+            if standard_role:
+                new_user.roles.append(standard_role)
 
     for permission_value in data.get('permission_ids') or data.get('privileges') or []:
         permission = None

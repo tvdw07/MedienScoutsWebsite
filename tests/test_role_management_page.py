@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 import pytest
 from flask import Flask
@@ -105,6 +106,22 @@ def test_roles_list_requires_roles_view(client, app):
 
     assert response.status_code == 200
     assert b'Role Management' in response.data
+
+
+def test_role_create_button_submits_the_modal_form(client, app):
+    with app.app_context():
+        creator_role = create_role('RoleCreator', ['roles.view', 'roles.create'])
+        creator = create_user('role-creator', 'creator@example.com', roles=[creator_role])
+        creator_id = creator.id
+
+    login_as(client, creator_id)
+    response = client.get('/roles/administration')
+
+    assert response.status_code == 200
+    assert re.search(
+        rb'<button\b(?=[^>]*id="saveRoleBtn")(?=[^>]*type="submit")(?=[^>]*form="roleForm")[^>]*>',
+        response.data,
+    )
 
 
 def test_role_create_requires_roles_create(client, app):

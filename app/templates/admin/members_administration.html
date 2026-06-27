@@ -9,6 +9,11 @@
             <h1 class="mb-1">Member Management</h1>
             <p class="text-muted mb-0">Open a user to inspect roles, effective permissions and permission sources.</p>
         </div>
+        {% if can_create_users %}
+        <button type="button" class="btn btn-primary" id="createUserBtn">
+            <i class="fa-solid fa-user-plus me-1"></i>New User
+        </button>
+        {% endif %}
     </div>
 
     <div class="table-responsive mb-4">
@@ -95,6 +100,38 @@
                     <div class="col-lg-4">
                         <section class="border rounded-1 p-3 h-100">
                             <h6 class="mb-3">Master data</h6>
+                            <form id="userCreateForm" class="d-none">
+                                <div class="mb-3">
+                                    <label for="createUserUsername" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="createUserUsername" maxlength="150"
+                                           autocomplete="username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="createUserFirstName" class="form-label">First name</label>
+                                    <input type="text" class="form-control" id="createUserFirstName" maxlength="50"
+                                           autocomplete="given-name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="createUserLastName" class="form-label">Last name</label>
+                                    <input type="text" class="form-control" id="createUserLastName" maxlength="50"
+                                           autocomplete="family-name" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="createUserEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="createUserEmail" maxlength="120"
+                                           autocomplete="email" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="createUserPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="createUserPassword"
+                                           autocomplete="new-password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="createUserRoles" class="form-label">Initial roles</label>
+                                    <select class="form-select" id="createUserRoles" multiple size="5"></select>
+                                    <div class="form-text">The User role is selected by default. Additional roles can be assigned here.</div>
+                                </div>
+                            </form>
                             <dl class="row mb-0" id="userMasterData">
                                 <dt class="col-5 text-muted">Username</dt>
                                 <dd class="col-7 mb-2">-</dd>
@@ -160,6 +197,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="submit" class="btn btn-primary me-auto d-none" id="saveUserBtn" form="userCreateForm">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Create
+                </button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="fa-solid fa-xmark me-1"></i>Close
                 </button>
@@ -187,6 +227,15 @@
     const permissionReasonContainer = document.getElementById('permissionOverrideReasonContainer');
     const permissionReasonInput = document.getElementById('permissionOverrideReason');
     const rolePermissionHint = document.getElementById('rolePermissionHint');
+    const userCreateForm = document.getElementById('userCreateForm');
+    const saveUserBtn = document.getElementById('saveUserBtn');
+    const createUserBtn = document.getElementById('createUserBtn');
+    const createUserUsername = document.getElementById('createUserUsername');
+    const createUserFirstName = document.getElementById('createUserFirstName');
+    const createUserLastName = document.getElementById('createUserLastName');
+    const createUserEmail = document.getElementById('createUserEmail');
+    const createUserPassword = document.getElementById('createUserPassword');
+    const createUserRoles = document.getElementById('createUserRoles');
 
     const escapeMap = {
         '&': '&amp;',
@@ -222,6 +271,18 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         `;
+    }
+
+    function renderCreateRoleOptions(roles) {
+        if (!roles.length) {
+            createUserRoles.innerHTML = '<option value="" disabled>No roles available</option>';
+            return;
+        }
+
+        createUserRoles.innerHTML = roles.map((role) => {
+            const selected = role.name === 'User' ? ' selected' : '';
+            return `<option value="${role.id}"${selected}>${escapeHtml(role.name)}</option>`;
+        }).join('');
     }
 
     function renderDefinitionList(user) {
@@ -334,6 +395,7 @@
         const user = detail.user;
         const canManageRoles = Boolean(detail.capabilities?.can_manage_roles);
         const canManagePermissions = Boolean(detail.capabilities?.can_manage_permissions);
+        const isCreateMode = user.id === 0;
 
         userModalLabel.textContent = user.id ? `User Details: ${user.username}` : 'New User';
         userModalSubtitle.textContent = user.id ? `ID ${user.id}` : '';
@@ -346,6 +408,33 @@
 
         renderDefinitionList(user);
         renderAlert(message, 'success');
+
+        userCreateForm.classList.toggle('d-none', !isCreateMode);
+        userMasterData.classList.toggle('d-none', isCreateMode);
+        saveUserBtn.classList.toggle('d-none', !isCreateMode);
+        saveUserBtn.textContent = 'Create';
+
+        if (isCreateMode) {
+            createUserUsername.value = user.username || '';
+            createUserFirstName.value = user.first_name || '';
+            createUserLastName.value = user.last_name || '';
+            createUserEmail.value = user.email || '';
+            createUserPassword.value = '';
+            renderCreateRoleOptions(detail.available_roles || []);
+            rolePermissionHint.textContent = 'Create the user first to manage roles and permissions.';
+            permissionReasonContainer.classList.add('d-none');
+            activeRolesList.innerHTML = '<span class="text-muted">Create the user first.</span>';
+            availableRolesList.innerHTML = '<span class="text-muted">Select initial roles in the form on the left.</span>';
+            effectivePermissionsCount.textContent = '0 effective permissions';
+            effectivePermissionsList.innerHTML = '<span class="text-muted">Create the user first.</span>';
+            permissionTableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-muted">Create the user first to inspect permission sources.</td>
+                </tr>
+            `;
+            saveUserBtn.disabled = false;
+            return;
+        }
 
         permissionReasonContainer.classList.toggle('d-none', !canManagePermissions);
 
@@ -391,6 +480,7 @@
     async function openUserDetail(userId) {
         renderAlert('');
         permissionReasonInput.value = '';
+        userCreateForm.reset();
         userModalLabel.textContent = 'Loading...';
         userModalSubtitle.textContent = '';
         userMasterData.innerHTML = '<dd class="col-12 mb-0 text-muted">Loading...</dd>';
@@ -399,6 +489,7 @@
         effectivePermissionsList.innerHTML = '';
         effectivePermissionsCount.textContent = '';
         permissionTableBody.innerHTML = '';
+        saveUserBtn.classList.add('d-none');
         userModal.show();
 
         try {
@@ -439,6 +530,30 @@
         renderUserDetail(detail, detail.message || 'Permission override updated.');
     }
 
+    function selectedRoleIds() {
+        return Array.from(createUserRoles.selectedOptions)
+            .map((option) => parseInt(option.value, 10))
+            .filter((value) => Number.isInteger(value));
+    }
+
+    async function createUser() {
+        const payload = {
+            username: createUserUsername.value.trim(),
+            first_name: createUserFirstName.value.trim(),
+            last_name: createUserLastName.value.trim(),
+            email: createUserEmail.value.trim(),
+            password: createUserPassword.value,
+            role_ids: selectedRoleIds(),
+        };
+
+        await fetchJson(`{{ url_for('admin.create_user') }}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+        });
+        window.location.reload();
+    }
+
     document.addEventListener('click', async (event) => {
         const detailButton = event.target.closest('.js-user-detail');
         if (detailButton) {
@@ -466,6 +581,21 @@
             } catch (error) {
                 renderAlert(error.message, 'danger');
             }
+        }
+    });
+
+    if (createUserBtn) {
+        createUserBtn.addEventListener('click', async () => {
+            await openUserDetail(0);
+        });
+    }
+
+    userCreateForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            await createUser();
+        } catch (error) {
+            renderAlert(error.message, 'danger');
         }
     });
 

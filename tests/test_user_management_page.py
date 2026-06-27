@@ -263,3 +263,63 @@ def test_effective_permissions_show_correct_sources(client, app):
     assert 'tickets.reply' not in payload['effective_permissions']
     assert 'tickets.view' in payload['effective_permissions']
     assert 'tickets.archive' in payload['effective_permissions']
+
+
+def test_admin_can_create_user(client, app):
+    with app.app_context():
+        admin_role = Role.query.filter_by(name='Admin').one()
+        admin = create_user('admin-user', 'admin@example.com', roles=[admin_role], role=RoleEnum.ADMIN)
+        initial_count = User.query.count()
+        admin_id = admin.id
+
+    login_as(client, admin_id)
+    response = client.post(
+        '/members/user',
+        json={
+            'username': 'new-user',
+            'first_name': 'New',
+            'last_name': 'User',
+            'email': 'new-user@example.com',
+            'password': 'Secret123!',
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert payload['user']['username'] == 'new-user'
+    assert [role['name'] for role in payload['active_roles']] == ['User']
+
+    with app.app_context():
+        assert User.query.count() == initial_count + 1
+        created_user = User.query.filter_by(username='new-user').one()
+        assert {role.name for role in created_user.roles} == {'User'}
+
+
+def test_admin_can_create_user_with_custom_role(client, app):
+    with app.app_context():
+        custom_role = create_role('Support', ['tickets.view'])
+        admin_role = Role.query.filter_by(name='Admin').one()
+        admin = create_user('admin-user', 'admin@example.com', roles=[admin_role], role=RoleEnum.ADMIN)
+        admin_id = admin.id
+        custom_role_id = custom_role.id
+
+    login_as(client, admin_id)
+    response = client.post(
+        '/members/user',
+        json={
+            'username': 'role-user',
+            'first_name': 'Role',
+            'last_name': 'User',
+            'email': 'role-user@example.com',
+            'password': 'Secret123!',
+            'role_ids': [custom_role_id],
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+    assert [role['name'] for role in payload['active_roles']] == ['Support']
+
+    with app.app_context():
+        created_user = User.query.filter_by(username='role-user').one()
+        assert {role.name for role in created_user.roles} == {'Support'}

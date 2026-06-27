@@ -20,6 +20,17 @@ In short:
 - Protected routes use `@permission_required("permission.name")`
 - Standard roles are `Admin`, `Teacher`, `MediaScout`, and `User`
 
+## Legal Configuration
+The legal pages read their responsible contacts from `.env` / environment variables:
+
+- `IMPRINT_RESPONSIBLE_NAME`
+- `IMPRINT_RESPONSIBLE_EMAIL`
+- `PRIVACY_RESPONSIBLE_NAME`
+- `PRIVACY_RESPONSIBLE_EMAIL`
+- `IMPRINT_DEVELOPMENT_TEXT`
+
+The defaults in `.env.example` point to the current project contact.
+
 ## Installation
 
 The project install instructions are based on Ubuntu 22.04, but PostgreSQL is now used as the default database.
@@ -147,13 +158,10 @@ We welcome contributions! If you're interested in contributing, you can:
 
 ### License Compliance
 - Ensure proper credit is given both visually within the software and in the Impressum.
-- For commercial use, please contact Tim von der Weppen via email.
+- Keep the responsible contact details in `.env` up to date when the legal owner changes.
 
 ## License
 This project is licensed under the applicable terms. See the `LICENSE` file for more details.
 
 ## Contact
-For support or inquiries, please reach out to:
-
-**Tim von der Weppen**  
-Email: [tim.vonderweppen@web.de](mailto:tim.vonderweppen@web.de)
+Responsible contact details are configured through the environment variables listed above.
