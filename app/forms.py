@@ -1,8 +1,8 @@
 from flask import current_app
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed
-from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired, Email, EqualTo, Length
+from wtforms import StringField, PasswordField, SubmitField, TextAreaField, SelectField, HiddenField
+from wtforms.validators import DataRequired, EqualTo, Length, Optional
 from wtforms.validators import ValidationError
 import re
 
@@ -30,6 +30,15 @@ class PasswordPolicy:
             raise ValidationError('Password must contain at least one special character.')
 
 
+class SimpleEmail:
+    def __call__(self, form, field):
+        value = (field.data or '').strip()
+        if not value:
+            return
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', value):
+            raise ValidationError('Invalid email address.')
+
+
 # Form for user login
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -40,7 +49,7 @@ class LoginForm(FlaskForm):
 # Form for requesting password reset
 class PasswordResetRequestForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
-    email = StringField('Email', validators=[DataRequired(), Email()])
+    email = StringField('Email', validators=[DataRequired(), SimpleEmail()])
     submit = SubmitField('Request Password Reset')
 
 
@@ -60,9 +69,126 @@ class PasswordResetForm(FlaskForm):
 class EditProfileForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
-    email = StringField('Email', validators=[DataRequired(), Email()])
+    email = StringField('Email', validators=[DataRequired(), SimpleEmail()])
     profile_image = FileField('Profile Image', validators=[FileAllowed(['jpg', 'png', 'jpeg'])])
     delete_image = SubmitField('Delete Profile Image')
     submit = SubmitField('Save Changes')
+
+
+MEDIA_CONSULTING_TOPIC_CHOICES = [
+    ('Social Media', 'Social Media'),
+    ('Datenschutz / Privatsphäre', 'Datenschutz / Privatsphäre'),
+    ('Cybermobbing', 'Cybermobbing'),
+    ('Gaming / Bildschirmzeit', 'Gaming / Bildschirmzeit'),
+    ('Mediensucht', 'Mediensucht'),
+    ('iPad / Apps / Schulgeräte', 'iPad / Apps / Schulgeräte'),
+    ('Sonstiges', 'Sonstiges'),
+]
+
+
+class SendTicketForm(FlaskForm):
+    ticket_type = SelectField(
+        'Ticket Art',
+        choices=[
+            ('problem', 'Problem'),
+            ('fortbildung', 'Fortbildung'),
+            ('medienberatung', 'Medienberatung'),
+            ('sonstiges', 'Sonstiges'),
+        ],
+        default='problem',
+        validators=[DataRequired()],
+    )
+
+    problem_first_name = StringField('Vorname', validators=[Optional(), Length(max=50)])
+    problem_last_name = StringField('Nachname', validators=[Optional(), Length(max=50)])
+    problem_email = StringField('E-Mail-Adresse', validators=[Optional(), SimpleEmail(), Length(max=100)])
+    problem_class_name = StringField('Klasse/Stufe', validators=[Optional(), Length(max=50)])
+    problem_serial_number = StringField('Seriennummer', validators=[Optional(), Length(max=50)])
+    problem_description = TextAreaField('Beschreibung des Problems', validators=[Optional()])
+    problem_steps = HiddenField()
+    photo = FileField('Foto', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'])])
+
+    training_class_teacher = StringField('Klassenlehrer', validators=[Optional(), Length(max=50)])
+    training_email = StringField('E-Mail-Adresse', validators=[Optional(), SimpleEmail(), Length(max=100)])
+    training_type = StringField('Art der Fortbildung', validators=[Optional(), Length(max=100)])
+    training_reason = TextAreaField('Grund für die Fortbildung', validators=[Optional()])
+    training_proposed_date = StringField('Vorgeschlagenes Datum & Uhrzeit', validators=[Optional(), Length(max=32)])
+
+    media_first_name = StringField('Vorname', validators=[Optional(), Length(max=50)])
+    media_last_name = StringField('Nachname', validators=[Optional(), Length(max=50)])
+    media_email = StringField('E-Mail-Adresse', validators=[Optional(), SimpleEmail(), Length(max=100)])
+    media_class_name = StringField('Klasse', validators=[Optional(), Length(max=50)])
+    media_topic = SelectField(
+        'Thema',
+        choices=[('', 'Bitte Thema auswählen')] + MEDIA_CONSULTING_TOPIC_CHOICES,
+        validators=[Optional()],
+    )
+    media_description = TextAreaField('Beschreibung', validators=[Optional()])
+    media_proposed_date = StringField('Terminvorschlag', validators=[Optional(), Length(max=32)])
+
+    misc_first_name = StringField('Vorname', validators=[Optional(), Length(max=50)])
+    misc_last_name = StringField('Nachname', validators=[Optional(), Length(max=50)])
+    misc_email = StringField('E-Mail-Adresse', validators=[Optional(), SimpleEmail(), Length(max=100)])
+    misc_message = TextAreaField('Nachricht', validators=[Optional()])
+
+    submit = SubmitField('Ticket absenden')
+
+    @staticmethod
+    def _has_value(field):
+        value = field.data
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return bool(value.strip())
+        return bool(value)
+
+    def validate(self, extra_validators=None):
+        if not super().validate(extra_validators=extra_validators):
+            return False
+
+        ticket_type = (self.ticket_type.data or '').strip()
+        required_fields_by_type = {
+            'problem': [
+                self.problem_first_name,
+                self.problem_last_name,
+                self.problem_email,
+                self.problem_class_name,
+                self.problem_description,
+                self.problem_steps,
+            ],
+            'fortbildung': [
+                self.training_class_teacher,
+                self.training_email,
+                self.training_type,
+                self.training_reason,
+                self.training_proposed_date,
+            ],
+            'medienberatung': [
+                self.media_first_name,
+                self.media_last_name,
+                self.media_email,
+                self.media_class_name,
+                self.media_topic,
+                self.media_description,
+            ],
+            'sonstiges': [
+                self.misc_first_name,
+                self.misc_last_name,
+                self.misc_email,
+                self.misc_message,
+            ],
+        }
+
+        if ticket_type not in required_fields_by_type:
+            self.ticket_type.errors.append('Ungültiger Ticket-Typ.')
+            return False
+
+        is_valid = True
+        for field in required_fields_by_type[ticket_type]:
+            if not self._has_value(field):
+                field.errors.append('Dieses Feld ist erforderlich.')
+                is_valid = False
+
+        return is_valid
 
 

@@ -613,7 +613,7 @@ def notify_client(ticket, message):
 
 
 def notify_user_about_ticket_change(ticket, message, ticket_type):
-    from app.models import ProblemTicketUser, TrainingTicketUser, MiscTicketUser, User
+    from app.models import ProblemTicketUser, TrainingTicketUser, MiscTicketUser, MediaConsultingTicketUser, User
 
     # Determine the correct user assignment model based on ticket type
     if ticket_type == 'problem':
@@ -622,6 +622,10 @@ def notify_user_about_ticket_change(ticket, message, ticket_type):
         responsible_user = TrainingTicketUser.query.filter_by(training_ticket_id=ticket.id).first()
     elif ticket_type == 'misc':
         responsible_user = MiscTicketUser.query.filter_by(misc_ticket_id=ticket.id).first()
+    elif ticket_type == 'medienberatung':
+        responsible_user = MediaConsultingTicketUser.query.filter_by(
+            media_consulting_ticket_id=ticket.id
+        ).first()
     else:
         responsible_user = None
 

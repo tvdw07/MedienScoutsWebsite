@@ -65,6 +65,16 @@
         <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
         <p><strong>Email:</strong> {{ ticket.email }}</p>
         <p><strong>Nachricht:</strong> {{ ticket.message }}</p>
+        {% elif ticket_type == 'medienberatung' %}
+        <h2 class="card-title">Medienberatung Ticket</h2>
+        <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
+        <p><strong>Email:</strong> {{ ticket.email }}</p>
+        <p><strong>Klasse:</strong> {{ ticket.class_name }}</p>
+        <p><strong>Thema:</strong> {{ ticket.topic }}</p>
+        <p><strong>Beschreibung:</strong> {{ ticket.description }}</p>
+        {% if ticket.proposed_date %}
+        <p><strong>Terminvorschlag:</strong> {{ ticket.proposed_date }}</p>
+        {% endif %}
         {% endif %}
     </div>
 

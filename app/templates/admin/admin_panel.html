@@ -21,17 +21,19 @@
                 <th>Problem</th>
                 <th>Training</th>
                 <th>Sonstiges</th>
+                <th>Medienberatung</th>
                 <th>Gesamt</th>
             </tr>
             </thead>
             <tbody>
-            {% for first_name, last_name, problem_count, training_count, misc_count in user_stats %}
+            {% for first_name, last_name, problem_count, training_count, misc_count, media_consulting_count in user_stats %}
             <tr>
                 <td>{{ first_name }} {{ last_name }}</td>
                 <td>{{ problem_count }}</td>
                 <td>{{ training_count }}</td>
                 <td>{{ misc_count }}</td>
-                <td>{{ problem_count + training_count + misc_count }}</td>
+                <td>{{ media_consulting_count }}</td>
+                <td>{{ problem_count + training_count + misc_count + media_consulting_count }}</td>
             </tr>
             {% endfor %}
             </tbody>

@@ -76,6 +76,32 @@
         <div class="col-md-12">Keine gelösten Misc Tickets.</div>
         {% endfor %}
     </div>
+
+    <!-- Section for Solved Media Consulting Tickets -->
+    <h2>Gelöste Medienberatung Tickets</h2>
+    <div class="row">
+        {% for ticket in solved_media_consulting_tickets %}
+        <div class="col-md-4 mb-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h5 class="card-title">Medienberatung Ticket ID: {{ ticket.id }}</h5>
+                    <p class="card-text">
+                        <strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }} <br>
+                        <strong>Klasse:</strong> {{ ticket.class_name }} <br>
+                        <strong>Thema:</strong> {{ ticket.topic }} <br>
+                        <strong>Beschreibung:</strong> {{ ticket.description }} <br>
+                    </p>
+                    <button class="btn btn-primary"
+                            onclick="window.location.href='{{ url_for('main.ticket_details', ticket_type='medienberatung', ticket_id=ticket.id) }}'">
+                        Details
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-md-12">Keine gelösten Medienberatung Tickets.</div>
+        {% endfor %}
+    </div>
 </div>
 
 <!-- Script zur Implementierung der Suchfunktion -->

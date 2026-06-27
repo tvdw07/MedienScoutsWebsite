@@ -13,7 +13,7 @@ from flask_limiter.util import get_remote_address
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import db, User, ProblemTicket, ProblemTicketUser, TicketHistory, TrainingTicket, TrainingTicketUser, \
-    MiscTicket, MiscTicketUser
+    MiscTicket, MiscTicketUser, MediaConsultingTicket, MediaConsultingTicketUser
 import config
 import atexit
 
@@ -162,6 +162,14 @@ def create_app():
             for ticket in old_misc_tickets:
                 MiscTicketUser.query.filter_by(misc_ticket_id=ticket.id).delete()
                 TicketHistory.query.filter_by(ticket_id=ticket.id, ticket_type='misc').delete()
+                db.session.delete(ticket)
+                tickets_deleted = True
+            old_media_consulting_tickets = MediaConsultingTicket.query.filter(
+                MediaConsultingTicket.created_at < threshold_date
+            ).all()
+            for ticket in old_media_consulting_tickets:
+                MediaConsultingTicketUser.query.filter_by(media_consulting_ticket_id=ticket.id).delete()
+                TicketHistory.query.filter_by(ticket_id=ticket.id, ticket_type='medienberatung').delete()
                 db.session.delete(ticket)
                 tickets_deleted = True
             if tickets_deleted:

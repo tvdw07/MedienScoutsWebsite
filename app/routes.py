@@ -8,12 +8,13 @@ from urllib.parse import urlparse, urljoin, unquote
 from PIL import Image
 from flask import abort, flash, jsonify, redirect, render_template, request, session, send_from_directory, url_for, current_app
 from flask_login import logout_user, login_required, current_user
+from werkzeug.datastructures import CombinedMultiDict, MultiDict
 from werkzeug.utils import secure_filename
 from app.decorators import any_permission_required, permission_required, ticket_owner_required
-from app.forms import EditProfileForm
+from app.forms import EditProfileForm, SendTicketForm
 from app.legal import build_legal_context
 from app.models import db, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
-    MiscTicketUser, TicketHistory, User, RoleEnum
+    MiscTicketUser, MediaConsultingTicket, MediaConsultingTicketUser, TicketHistory, User, RoleEnum
 from email_tools import send_ticket_link, notify_admin, notify_client, notify_user_about_ticket_change, send_reset_email
 
 
@@ -56,17 +57,24 @@ def ticket_verwaltung():
         open_problem_tickets = ProblemTicket.query.filter_by(status_id=1).all()
         open_training_tickets = TrainingTicket.query.filter_by(status_id=1).all()
         open_misc_tickets = MiscTicket.query.filter_by(status_id=1).all()
+        open_media_consulting_tickets = MediaConsultingTicket.query.filter_by(status_id=1).all()
 
         for ticket in open_problem_tickets:
             ticket.type = 'problem'
+            ticket.description = ticket.problem_description
         for ticket in open_training_tickets:
             ticket.type = 'training'
+            ticket.description = ticket.training_reason
         for ticket in open_misc_tickets:
             ticket.type = 'misc'
+            ticket.description = ticket.message
+        for ticket in open_media_consulting_tickets:
+            ticket.type = 'medienberatung'
     else:
         open_problem_tickets = []
         open_training_tickets = []
         open_misc_tickets = []
+        open_media_consulting_tickets = []
 
     my_problem_tickets = ProblemTicket.query.join(ProblemTicketUser).filter(
         ProblemTicketUser.user_id == current_user.id, ProblemTicket.status_id != 4).all()
@@ -74,17 +82,24 @@ def ticket_verwaltung():
         TrainingTicketUser.user_id == current_user.id, TrainingTicket.status_id != 4).all()
     my_misc_tickets = MiscTicket.query.join(MiscTicketUser).filter(
         MiscTicketUser.user_id == current_user.id, MiscTicket.status_id != 4).all()
+    my_media_consulting_tickets = MediaConsultingTicket.query.join(MediaConsultingTicketUser).filter(
+        MediaConsultingTicketUser.user_id == current_user.id, MediaConsultingTicket.status_id != 4).all()
 
     for ticket in my_problem_tickets:
         ticket.type = 'problem'
+        ticket.description = ticket.problem_description
     for ticket in my_training_tickets:
         ticket.type = 'training'
+        ticket.description = ticket.training_reason
     for ticket in my_misc_tickets:
         ticket.type = 'misc'
+        ticket.description = ticket.message
+    for ticket in my_media_consulting_tickets:
+        ticket.type = 'medienberatung'
 
-    my_tickets = my_problem_tickets + my_training_tickets + my_misc_tickets
+    my_tickets = my_problem_tickets + my_training_tickets + my_misc_tickets + my_media_consulting_tickets
     total_open_tickets = (
-        len(open_problem_tickets) + len(open_training_tickets) + len(open_misc_tickets)
+        len(open_problem_tickets) + len(open_training_tickets) + len(open_misc_tickets) + len(open_media_consulting_tickets)
         if can_view_all_tickets
         else 0
     )
@@ -94,6 +109,7 @@ def ticket_verwaltung():
         open_problem_tickets=open_problem_tickets,
         open_training_tickets=open_training_tickets,
         open_misc_tickets=open_misc_tickets,
+        open_media_consulting_tickets=open_media_consulting_tickets,
         my_tickets=my_tickets,
         total_open_tickets=total_open_tickets,
         can_view_all_tickets=can_view_all_tickets,
@@ -112,6 +128,8 @@ def ticket_details(ticket_type, ticket_id):
         ticket = TrainingTicket.query.get(ticket_id)
     elif ticket_type == 'misc':
         ticket = MiscTicket.query.get(ticket_id)
+    elif ticket_type == 'medienberatung':
+        ticket = MediaConsultingTicket.query.get(ticket_id)
     else:
         flash('Ung?ltiger Ticket-Typ.', 'danger')
         return redirect(url_for('main.ticket_verwaltung'))
@@ -141,6 +159,9 @@ def claim_ticket(ticket_id):
         elif ticket_type == 'misc':
             ticket = MiscTicket.query.get(ticket_id)
             ticket_user = MiscTicketUser(misc_ticket_id=ticket_id, user_id=user_id)
+        elif ticket_type == 'medienberatung':
+            ticket = MediaConsultingTicket.query.get(ticket_id)
+            ticket_user = MediaConsultingTicketUser(media_consulting_ticket_id=ticket_id, user_id=user_id)
         else:
             current_app.logger.error(f'Ungültiger Ticket-Typ: {ticket_type}')
             flash('Ungültiger Ticket-Typ.', 'danger')
@@ -170,6 +191,8 @@ def request_help(ticket_id):
         ticket = TrainingTicket.query.get(ticket_id)
     elif ticket_type == 'misc':
         ticket = MiscTicket.query.get(ticket_id)
+    elif ticket_type == 'medienberatung':
+        ticket = MediaConsultingTicket.query.get(ticket_id)
     else:
         flash('Invalid ticket type.', 'danger')
         return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
@@ -197,6 +220,8 @@ def submit_response(ticket_id):
         ticket = TrainingTicket.query.get(ticket_id)
     elif ticket_type == 'misc':
         ticket = MiscTicket.query.get(ticket_id)
+    elif ticket_type == 'medienberatung':
+        ticket = MediaConsultingTicket.query.get(ticket_id)
 
     if ticket.status_id == 4 or ticket.status_id == 1:
         flash('Ticket is already solved.', 'danger')
@@ -228,6 +253,8 @@ def mark_ticket_solved(ticket_id):
         ticket = TrainingTicket.query.get(ticket_id)
     elif ticket_type == 'misc':
         ticket = MiscTicket.query.get(ticket_id)
+    elif ticket_type == 'medienberatung':
+        ticket = MediaConsultingTicket.query.get(ticket_id)
     else:
         flash('Invalid ticket type.', 'danger')
         return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
@@ -246,97 +273,93 @@ def mark_ticket_solved(ticket_id):
 @bp_main.route('/send_ticket', methods=['GET', 'POST'])
 def send_ticket():
     """Handles the submission of different types of tickets"""
+    form = SendTicketForm(formdata=build_send_ticket_formdata() if request.method == 'POST' else None)
+    if request.method == 'GET' and not form.ticket_type.data:
+        form.ticket_type.data = 'problem'
+
     if request.method == 'POST':
-        ticket_type = request.form.get('ticket_type')
+        if not form.validate():
+            flash('Please fill in all the required fields.', 'danger')
+            return render_template('tickets/ticket.html', form=form)
 
-        if ticket_type == 'problem':
-            if not request.form.get('first_name') or not request.form.get('last_name') or not request.form.get(
-                    'email_problem') or not request.form.get('class') or not request.form.get(
-                'problem_description') or not request.form.getlist('steps'):
-                flash('Please fill in all the required fields.', 'danger')
-                return redirect(request.url)
-            first_name = request.form.get('first_name')
-            last_name = request.form.get('last_name')
-            email = request.form.get('email_problem')
-            class_stufe = request.form.get('class')
-            serial_number = request.form.get('serial_number')
-            problem_description = request.form.get('problem_description')
-            steps = request.form.getlist('steps')
-            steps_taken = ", ".join(steps)
-            photo = request.files.get('photo')
-            photo_path = save_photo(photo, first_name, last_name)
-            if photo and photo_path is None:
-                # Fehler beim Foto-Upload, Fehler wurde bereits geflasht
-                return redirect(url_for('main.send_ticket'))
-            ticket = ProblemTicket(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                class_name=class_stufe,
-                serial_number=serial_number,
-                problem_description=problem_description,
-                steps_taken=steps_taken,
-                photo=photo_path,
-                status_id=1
-            )
+        ticket_type = form.ticket_type.data
 
-            db.session.add(ticket)
-            current_app.logger.info('Problem ticket submitted')
-
-        elif ticket_type == 'fortbildung':
-            if not request.form.get('class_teacher') or not request.form.get(
-                    'email_fortbildung') or not request.form.get('training_type') or not request.form.get(
-                'training_reason') or not request.form.get('proposed_date'):
-                flash('Please fill in all the required fields.', 'danger')
-                return redirect(request.url)
-            class_teacher = request.form.get('class_teacher')
-            email = request.form.get('email_fortbildung')
-            training_type = request.form.get('training_type')
-            training_reason = request.form.get('training_reason')
-            proposed_date = request.form.get('proposed_date')
-            ticket = TrainingTicket(
-                class_teacher=class_teacher,
-                email=email,
-                training_type=training_type,
-                training_reason=training_reason,
-                proposed_date=proposed_date,
-                status_id=1
-            )
-
-            db.session.add(ticket)
-            current_app.logger.info('Training ticket submitted')
-
-        else:
-            if not request.form.get('first_name_sonstiges') or not request.form.get(
-                    'last_name_sonstiges') or not request.form.get('email_sonstiges') or not request.form.get(
-                'message_sonstiges'):
-                flash('Please fill in all the required fields.', 'danger')
-                return redirect(request.url)
-            first_name = request.form.get('first_name_sonstiges')
-            last_name = request.form.get('last_name_sonstiges')
-            message = request.form.get('message_sonstiges')
-            email = request.form.get('email_sonstiges')
-
-            ticket = MiscTicket(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                message=message,
-                status_id=1
-            )
+        try:
+            if ticket_type == 'problem':
+                steps_taken = [step.strip() for step in (form.problem_steps.data or '').split(',') if step.strip()]
+                if not steps_taken:
+                    flash('Please fill in all the required fields.', 'danger')
+                    return render_template('tickets/ticket.html', form=form)
+                photo = form.photo.data
+                photo_path = save_photo(photo, form.problem_first_name.data, form.problem_last_name.data)
+                if photo and photo_path is None:
+                    return render_template('tickets/ticket.html', form=form)
+                ticket = ProblemTicket(
+                    first_name=form.problem_first_name.data,
+                    last_name=form.problem_last_name.data,
+                    email=form.problem_email.data,
+                    class_name=form.problem_class_name.data,
+                    serial_number=form.problem_serial_number.data or None,
+                    problem_description=form.problem_description.data,
+                    steps_taken=', '.join(steps_taken),
+                    photo=photo_path,
+                    status_id=1,
+                )
+                current_app.logger.info('Problem ticket submitted')
+            elif ticket_type == 'fortbildung':
+                proposed_date = parse_optional_datetime(form.training_proposed_date.data)
+                if form.training_proposed_date.data and proposed_date is None:
+                    flash('Please provide a valid proposed date.', 'danger')
+                    return render_template('tickets/ticket.html', form=form)
+                ticket = TrainingTicket(
+                    class_teacher=form.training_class_teacher.data,
+                    email=form.training_email.data,
+                    training_type=form.training_type.data,
+                    training_reason=form.training_reason.data,
+                    proposed_date=proposed_date,
+                    status_id=1,
+                )
+                current_app.logger.info('Training ticket submitted')
+            elif ticket_type == 'medienberatung':
+                proposed_date = parse_optional_datetime(form.media_proposed_date.data)
+                if form.media_proposed_date.data and proposed_date is None:
+                    flash('Please provide a valid proposed date.', 'danger')
+                    return render_template('tickets/ticket.html', form=form)
+                ticket = MediaConsultingTicket(
+                    first_name=form.media_first_name.data,
+                    last_name=form.media_last_name.data,
+                    email=form.media_email.data,
+                    class_name=form.media_class_name.data,
+                    topic=form.media_topic.data,
+                    description=form.media_description.data,
+                    proposed_date=proposed_date,
+                    status_id=1,
+                )
+                current_app.logger.info('Media consulting ticket submitted')
+            else:
+                ticket = MiscTicket(
+                    first_name=form.misc_first_name.data,
+                    last_name=form.misc_last_name.data,
+                    email=form.misc_email.data,
+                    message=form.misc_message.data,
+                    status_id=1,
+                )
+                current_app.logger.info('Misc ticket submitted')
 
             db.session.add(ticket)
-            current_app.logger.info('Misc ticket submitted')
+            db.session.commit()
 
-        db.session.commit()
+            send_ticket_link(ticket)
 
-        # Generate token and send email with the link
-        send_ticket_link(ticket)
+            flash(f'Ticket submitted successfully! Type: {ticket_type}', 'success')
+            return redirect(url_for('main.home'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Error while submitting ticket: {e}')
+            flash('An error occurred while submitting the ticket.', 'danger')
+            return render_template('tickets/ticket.html', form=form)
 
-        flash(f'Ticket submitted successfully! Type: {ticket_type}', 'success')
-        return redirect(url_for('main.home'))
-
-    return render_template('tickets/ticket.html')
+    return render_template('tickets/ticket.html', form=form)
 
 
 def save_photo(photo, first_name, last_name):
@@ -400,11 +423,13 @@ def archiv():
     solved_problem_tickets = ProblemTicket.query.filter_by(status_id=4).all()
     solved_training_tickets = TrainingTicket.query.filter_by(status_id=4).all()
     solved_misc_tickets = MiscTicket.query.filter_by(status_id=4).all()
+    solved_media_consulting_tickets = MediaConsultingTicket.query.filter_by(status_id=4).all()
 
     return render_template('pages/archiv.html',
                            solved_problem_tickets=solved_problem_tickets,
                            solved_training_tickets=solved_training_tickets,
-                           solved_misc_tickets=solved_misc_tickets)
+                           solved_misc_tickets=solved_misc_tickets,
+                           solved_media_consulting_tickets=solved_media_consulting_tickets)
 
 
 @bp_main.route('/impressum')
@@ -419,7 +444,12 @@ def view_ticket(token):
     """
     ticket_type = None
     # Determine the ticket type and retrieve the ticket using the token
-    for TicketModel, type_name in [(ProblemTicket, 'problem'), (TrainingTicket, 'training'), (MiscTicket, 'misc')]:
+    for TicketModel, type_name in [
+        (ProblemTicket, 'problem'),
+        (TrainingTicket, 'training'),
+        (MiscTicket, 'misc'),
+        (MediaConsultingTicket, 'medienberatung'),
+    ]:
         ticket = TicketModel.verify_token(token)
         if ticket:
             ticket_type = type_name
@@ -471,6 +501,79 @@ def log_ticket_message(ticket_type, ticket_id, message, author_type):
 def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def parse_optional_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def _first_non_blank(*values):
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, str):
+            if value.strip():
+                return value
+        elif value:
+            return value
+    return None
+
+
+def build_send_ticket_formdata():
+    data = MultiDict(request.form)
+    ticket_type = request.form.get('ticket_type')
+
+    legacy_mappings = {
+        'problem': {
+            'problem_first_name': ('problem_first_name', 'first_name'),
+            'problem_last_name': ('problem_last_name', 'last_name'),
+            'problem_email': ('problem_email', 'email_problem'),
+            'problem_class_name': ('problem_class_name', 'class'),
+            'problem_serial_number': ('problem_serial_number', 'serial_number'),
+            'problem_description': ('problem_description',),
+            'problem_steps': ('problem_steps',),
+        },
+        'fortbildung': {
+            'training_class_teacher': ('training_class_teacher', 'class_teacher'),
+            'training_email': ('training_email', 'email_fortbildung'),
+            'training_type': ('training_type',),
+            'training_reason': ('training_reason',),
+            'training_proposed_date': ('training_proposed_date', 'proposed_date'),
+        },
+        'medienberatung': {
+            'media_first_name': ('media_first_name', 'first_name'),
+            'media_last_name': ('media_last_name', 'last_name'),
+            'media_email': ('media_email', 'email'),
+            'media_class_name': ('media_class_name', 'class_name'),
+            'media_topic': ('media_topic', 'topic'),
+            'media_description': ('media_description', 'description'),
+            'media_proposed_date': ('media_proposed_date', 'proposed_date', 'proposed_date_medienberatung'),
+        },
+        'sonstiges': {
+            'misc_first_name': ('misc_first_name', 'first_name_sonstiges'),
+            'misc_last_name': ('misc_last_name', 'last_name_sonstiges'),
+            'misc_email': ('misc_email', 'email_sonstiges'),
+            'misc_message': ('misc_message', 'message_sonstiges'),
+        },
+    }
+
+    for target, source_keys in legacy_mappings.get(ticket_type, {}).items():
+        if not data.get(target):
+            value = _first_non_blank(*(request.form.get(source_key) for source_key in source_keys))
+            if value is not None:
+                data[target] = value
+
+    if not data.get('problem_steps'):
+        steps = [step.strip() for step in request.form.getlist('steps') if step and step.strip()]
+        if steps:
+            data['problem_steps'] = ', '.join(steps)
+
+    return CombinedMultiDict([data, request.files])
 
 
 def get_date_time():

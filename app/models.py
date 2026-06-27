@@ -260,6 +260,52 @@ class MiscTicketUser(db.Model):
     misc_ticket = db.relationship('MiscTicket', backref='assigned_users')
 
 
+# Media consulting ticket model
+class MediaConsultingTicket(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(50), nullable=False)
+    last_name = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(100), nullable=False)
+    class_name = db.Column(db.String(50), nullable=False)
+    topic = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    proposed_date = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    status_id = db.Column(db.Integer, db.ForeignKey('ticket_status.id'), default=1)
+    status = db.relationship('TicketStatus', backref='media_consulting_tickets')
+
+    def generate_token(self):
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        return s.dumps({'ticket_id': self.id, 'ticket_type': 'medienberatung'})
+
+    @staticmethod
+    def verify_token(token):
+        s = URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
+        try:
+            data = s.loads(token, max_age=current_app.config['TICKET_TOKEN_MAX_AGE_SECONDS'])
+        except (SignatureExpired, BadSignature):
+            return None
+        if data.get('ticket_type') != 'medienberatung':
+            return None
+        return MediaConsultingTicket.query.get(data['ticket_id'])
+
+
+# Media consulting ticket user association model
+class MediaConsultingTicketUser(db.Model):
+    ticket_user_id = db.Column(db.Integer, primary_key=True)
+    media_consulting_ticket_id = db.Column(
+        db.Integer,
+        db.ForeignKey('media_consulting_ticket.id'),
+        nullable=False,
+    )
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # ForeignKey to User
+    assigned_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)  # Assignment timestamp
+
+    # Relationships
+    user = db.relationship('User', backref='media_consulting_ticket_assignments')
+    media_consulting_ticket = db.relationship('MediaConsultingTicket', backref='assigned_users')
+
+
 # Ticket history model
 class TicketHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)

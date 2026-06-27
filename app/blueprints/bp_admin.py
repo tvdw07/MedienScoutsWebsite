@@ -8,6 +8,8 @@ from app.models import (
     db,
     MiscTicket,
     MiscTicketUser,
+    MediaConsultingTicket,
+    MediaConsultingTicketUser,
     Permission,
     ProblemTicket,
     ProblemTicketUser,
@@ -254,6 +256,7 @@ def admin_panel():
         db.session.query(ProblemTicket).filter(ProblemTicket.created_at >= six_months_ago).count()
         + db.session.query(TrainingTicket).filter(TrainingTicket.created_at >= six_months_ago).count()
         + db.session.query(MiscTicket).filter(MiscTicket.created_at >= six_months_ago).count()
+        + db.session.query(MediaConsultingTicket).filter(MediaConsultingTicket.created_at >= six_months_ago).count()
     )
     solved_tickets = (
         db.session.query(ProblemTicket)
@@ -264,6 +267,9 @@ def admin_panel():
         .count()
         + db.session.query(MiscTicket)
         .filter(MiscTicket.created_at >= six_months_ago, MiscTicket.status_id == 4)
+        .count()
+        + db.session.query(MediaConsultingTicket)
+        .filter(MediaConsultingTicket.created_at >= six_months_ago, MediaConsultingTicket.status_id == 4)
         .count()
     )
 
@@ -288,16 +294,29 @@ def admin_panel():
         MiscTicket.status_id == 4
     ).group_by(MiscTicketUser.user_id).subquery()
 
+    media_consulting_ticket_count = db.session.query(
+        MediaConsultingTicketUser.user_id,
+        db.func.count(MediaConsultingTicketUser.media_consulting_ticket_id).label('media_consulting_count'),
+    ).join(
+        MediaConsultingTicket,
+        MediaConsultingTicket.id == MediaConsultingTicketUser.media_consulting_ticket_id,
+    ).filter(
+        MediaConsultingTicket.status_id == 4
+    ).group_by(MediaConsultingTicketUser.user_id).subquery()
+
     user_stats = db.session.query(
         User.first_name,
         User.last_name,
         db.func.coalesce(problem_ticket_count.c.problem_count, 0).label('problem_count'),
         db.func.coalesce(training_ticket_count.c.training_count, 0).label('training_count'),
         db.func.coalesce(misc_ticket_count.c.misc_count, 0).label('misc_count'),
+        db.func.coalesce(media_consulting_ticket_count.c.media_consulting_count, 0).label('media_consulting_count'),
     ).outerjoin(problem_ticket_count, problem_ticket_count.c.user_id == User.id).outerjoin(
         training_ticket_count, training_ticket_count.c.user_id == User.id
     ).outerjoin(
         misc_ticket_count, misc_ticket_count.c.user_id == User.id
+    ).outerjoin(
+        media_consulting_ticket_count, media_consulting_ticket_count.c.user_id == User.id
     ).all()
 
     return render_template(
@@ -736,6 +755,9 @@ def delete_ticket(ticket_id):
     elif ticket_type == 'misc':
         ticket = MiscTicket.query.get(ticket_id)
         MiscTicketUser.query.filter_by(misc_ticket_id=ticket_id).delete()
+    elif ticket_type == 'medienberatung':
+        ticket = MediaConsultingTicket.query.get(ticket_id)
+        MediaConsultingTicketUser.query.filter_by(media_consulting_ticket_id=ticket_id).delete()
     else:
         current_app.logger.error(f'Invalid ticket type: {ticket_type}')
         flash('Invalid ticket type.', 'danger')

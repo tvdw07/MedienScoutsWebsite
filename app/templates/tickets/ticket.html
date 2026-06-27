@@ -4,49 +4,61 @@
 
 {% block content %}
 <div class="content-section">
-    <h1 class="text-center mb-4">Problem melden oder Fortbildung buchen</h1>
+    <h1 class="text-center mb-4">Problem melden, Fortbildung buchen oder Medienberatung anfragen</h1>
     <form method="POST" action="{{ url_for('main.send_ticket') }}" enctype="multipart/form-data"
           onsubmit="return validateForm()">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ form.hidden_tag() }}
+
+        {% if form.errors %}
+        <div class="alert alert-danger" role="alert">
+            Bitte prüfen Sie die markierten Felder.
+        </div>
+        {% endif %}
+
         <div class="mb-4">
             <label for="ticket_type" class="form-label">Ticket Art</label>
-            <select class="form-control" id="ticket_type" name="ticket_type" required onchange="toggleFields()">
-                <option value="problem">Problem</option>
-                <option value="fortbildung">Fortbildung</option>
-                <option value="sonstiges">Sonstiges</option>
+            <select class="form-control" id="ticket_type" name="{{ form.ticket_type.name }}" required onchange="toggleFields()">
+                {% for value, label in form.ticket_type.choices %}
+                <option value="{{ value }}" {% if form.ticket_type.data == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
             </select>
         </div>
-        <!--Req message-->
+
         <div id="req_message">
             <label class="form-label">Pflichtfelder <span class="req">*</span></label>
         </div>
 
-        <!-- Problem Section -->
         <div id="problem_fields" class="border p-4 rounded mb-4">
             <h2 class="h4 mb-3">Problemdetails</h2>
             <div class="mb-3">
-                <label for="first_name" class="form-label">Vorname <span class="req">*</span></label>
-                <input type="text" class="form-control" id="first_name" name="first_name" placeholder="Ihr Vorname">
+                <label for="problem_first_name" class="form-label">Vorname <span class="req">*</span></label>
+                <input type="text" class="form-control" id="problem_first_name" name="{{ form.problem_first_name.name }}"
+                       value="{{ form.problem_first_name.data or '' }}" placeholder="Ihr Vorname">
             </div>
             <div class="mb-3">
-                <label for="last_name" class="form-label">Nachname <span class="req">*</span></label>
-                <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Ihr Nachname">
+                <label for="problem_last_name" class="form-label">Nachname <span class="req">*</span></label>
+                <input type="text" class="form-control" id="problem_last_name" name="{{ form.problem_last_name.name }}"
+                       value="{{ form.problem_last_name.data or '' }}" placeholder="Ihr Nachname">
             </div>
             <div class="mb-4">
-                <label for="email_problem" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
-                <input type="email" class="form-control" id="email_problem" name="email_problem" placeholder="Ihre E-Mail-Adresse">
+                <label for="problem_email" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
+                <input type="email" class="form-control" id="problem_email" name="{{ form.problem_email.name }}"
+                       value="{{ form.problem_email.data or '' }}" placeholder="Ihre E-Mail-Adresse">
             </div>
             <div class="mb-3">
-                <label for="class" class="form-label">Klasse/Stufe <span class="req">*</span></label>
-                <input type="text" class="form-control" id="class" name="class" placeholder="Klassenstufe">
+                <label for="problem_class_name" class="form-label">Klasse/Stufe <span class="req">*</span></label>
+                <input type="text" class="form-control" id="problem_class_name" name="{{ form.problem_class_name.name }}"
+                       value="{{ form.problem_class_name.data or '' }}" placeholder="Klassenstufe">
             </div>
             <div class="mb-3">
-                <label for="serial_number" class="form-label">Seriennummer(optional)</label>
-                <input type="text" class="form-control" id="serial_number" name="serial_number" placeholder="Seriennummer des betroffenen Geräts">
+                <label for="problem_serial_number" class="form-label">Seriennummer (optional)</label>
+                <input type="text" class="form-control" id="problem_serial_number" name="{{ form.problem_serial_number.name }}"
+                       value="{{ form.problem_serial_number.data or '' }}" placeholder="Seriennummer des betroffenen Geräts">
             </div>
             <div class="mb-3">
                 <label for="problem_description" class="form-label">Beschreibung des Problems <span class="req">*</span></label>
-                <textarea class="form-control" id="problem_description" name="problem_description" rows="5" placeholder="Bitte beschreiben Sie das Problem"></textarea>
+                <textarea class="form-control" id="problem_description" name="{{ form.problem_description.name }}" rows="5"
+                          placeholder="Bitte beschreiben Sie das Problem">{{ form.problem_description.data or '' }}</textarea>
             </div>
             <div class="mb-3">
                 <label class="form-label">Bisher unternommene Schritte <span class="req">*</span></label>
@@ -62,57 +74,107 @@
             </div>
             <div class="mb-3">
                 <label for="photo" class="form-label">Foto des Stundenplans (optional)</label>
-                <input class="form-control" type="file" id="photo" name="photo">
+                <input class="form-control" type="file" id="photo" name="{{ form.photo.name }}">
             </div>
         </div>
 
-        <!-- Fortbildung Section -->
         <div id="fortbildung_fields" class="border p-4 rounded mb-4" style="display: none;">
             <h2 class="h4 mb-3">Fortbildungsdetails</h2>
             <div class="mb-3">
-                <label for="class_teacher" class="form-label">Klassenlehrer <span class="req">*</span></label>
-                <input type="text" class="form-control" id="class_teacher" name="class_teacher" placeholder="Name des Klassenlehrers">
+                <label for="training_class_teacher" class="form-label">Klassenlehrer <span class="req">*</span></label>
+                <input type="text" class="form-control" id="training_class_teacher" name="{{ form.training_class_teacher.name }}"
+                       value="{{ form.training_class_teacher.data or '' }}" placeholder="Name des Klassenlehrers">
             </div>
             <div class="mb-4">
-                <label for="email_fortbildung" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
-                <input type="email" class="form-control" id="email_fortbildung" name="email_fortbildung" placeholder="Ihre E-Mail-Adresse">
+                <label for="training_email" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
+                <input type="email" class="form-control" id="training_email" name="{{ form.training_email.name }}"
+                       value="{{ form.training_email.data or '' }}" placeholder="Ihre E-Mail-Adresse">
             </div>
             <div class="mb-3">
                 <label for="training_type" class="form-label">Art der Fortbildung <span class="req">*</span></label>
-                <input type="text" class="form-control" id="training_type" name="training_type" placeholder="Art der gewünschten Fortbildung">
+                <input type="text" class="form-control" id="training_type" name="{{ form.training_type.name }}"
+                       value="{{ form.training_type.data or '' }}" placeholder="Art der gewünschten Fortbildung">
             </div>
             <div class="mb-3">
                 <label for="training_reason" class="form-label">Grund für die Fortbildung <span class="req">*</span></label>
-                <textarea class="form-control" id="training_reason" name="training_reason" placeholder="Grund für die Fortbildung"></textarea>
+                <textarea class="form-control" id="training_reason" name="{{ form.training_reason.name }}" rows="5"
+                          placeholder="Grund für die Fortbildung">{{ form.training_reason.data or '' }}</textarea>
             </div>
             <div class="mb-3">
-                <label for="proposed_date" class="form-label">Vorgeschlagenes Datum & Uhrzeit <span class="req">*</span></label>
-                <input type="datetime-local" class="form-control" id="proposed_date" name="proposed_date">
+                <label for="training_proposed_date" class="form-label">Vorgeschlagenes Datum & Uhrzeit <span class="req">*</span></label>
+                <input type="datetime-local" class="form-control" id="training_proposed_date"
+                       name="{{ form.training_proposed_date.name }}" value="{{ form.training_proposed_date.data or '' }}">
             </div>
         </div>
 
-        <!-- Sonstiges Section -->
+        <div id="medienberatung_fields" class="border p-4 rounded mb-4" style="display: none;">
+            <h2 class="h4 mb-3">Medienberatung</h2>
+            <div class="mb-3">
+                <label for="media_first_name" class="form-label">Vorname <span class="req">*</span></label>
+                <input type="text" class="form-control" id="media_first_name" name="{{ form.media_first_name.name }}"
+                       value="{{ form.media_first_name.data or '' }}" placeholder="Ihr Vorname">
+            </div>
+            <div class="mb-3">
+                <label for="media_last_name" class="form-label">Nachname <span class="req">*</span></label>
+                <input type="text" class="form-control" id="media_last_name" name="{{ form.media_last_name.name }}"
+                       value="{{ form.media_last_name.data or '' }}" placeholder="Ihr Nachname">
+            </div>
+            <div class="mb-4">
+                <label for="media_email" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
+                <input type="email" class="form-control" id="media_email" name="{{ form.media_email.name }}"
+                       value="{{ form.media_email.data or '' }}" placeholder="Ihre E-Mail-Adresse">
+            </div>
+            <div class="mb-3">
+                <label for="media_class_name" class="form-label">Klasse <span class="req">*</span></label>
+                <input type="text" class="form-control" id="media_class_name" name="{{ form.media_class_name.name }}"
+                       value="{{ form.media_class_name.data or '' }}" placeholder="Klasse oder Stufe">
+            </div>
+            <div class="mb-3">
+                <label for="media_topic" class="form-label">Thema <span class="req">*</span></label>
+                <select class="form-control" id="media_topic" name="{{ form.media_topic.name }}" required>
+                    {% for value, label in form.media_topic.choices %}
+                    <option value="{{ value }}" {% if form.media_topic.data == value %}selected{% endif %} {% if not value %}disabled{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="media_description" class="form-label">Beschreibung <span class="req">*</span></label>
+                <textarea class="form-control" id="media_description" name="{{ form.media_description.name }}" rows="5"
+                          placeholder="Bitte beschreiben Sie den Beratungsbedarf">{{ form.media_description.data or '' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label for="media_proposed_date" class="form-label">Terminvorschlag</label>
+                <input type="datetime-local" class="form-control" id="media_proposed_date"
+                       name="{{ form.media_proposed_date.name }}" value="{{ form.media_proposed_date.data or '' }}">
+            </div>
+        </div>
+
         <div id="sonstiges_fields" class="border p-4 rounded mb-4" style="display: none;">
             <h2 class="h4 mb-3">Sonstiges</h2>
             <div class="mb-3">
-                <label for="first_name_sonstiges" class="form-label">Vorname <span class="req">*</span></label>
-                <input type="text" class="form-control" id="first_name_sonstiges" name="first_name_sonstiges" placeholder="Ihr Vorname">
+                <label for="misc_first_name" class="form-label">Vorname <span class="req">*</span></label>
+                <input type="text" class="form-control" id="misc_first_name" name="{{ form.misc_first_name.name }}"
+                       value="{{ form.misc_first_name.data or '' }}" placeholder="Ihr Vorname">
             </div>
             <div class="mb-3">
-                <label for="last_name_sonstiges" class="form-label">Nachname <span class="req">*</span></label>
-                <input type="text" class="form-control" id="last_name_sonstiges" name="last_name_sonstiges" placeholder="Ihr Nachname">
+                <label for="misc_last_name" class="form-label">Nachname <span class="req">*</span></label>
+                <input type="text" class="form-control" id="misc_last_name" name="{{ form.misc_last_name.name }}"
+                       value="{{ form.misc_last_name.data or '' }}" placeholder="Ihr Nachname">
             </div>
             <div class="mb-4">
-                <label for="email_sonstiges" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
-                <input type="email" class="form-control" id="email_sonstiges" name="email_sonstiges" placeholder="Ihre E-Mail-Adresse">
+                <label for="misc_email" class="form-label">E-Mail-Adresse <span class="req">*</span></label>
+                <input type="email" class="form-control" id="misc_email" name="{{ form.misc_email.name }}"
+                       value="{{ form.misc_email.data or '' }}" placeholder="Ihre E-Mail-Adresse">
             </div>
             <div class="mb-3">
-                <label for="message_sonstiges" class="form-label">Nachricht <span class="req">*</span></label>
-                <textarea class="form-control" id="message_sonstiges" name="message_sonstiges" rows="5" placeholder="Ihre Nachricht"></textarea>
+                <label for="misc_message" class="form-label">Nachricht <span class="req">*</span></label>
+                <textarea class="form-control" id="misc_message" name="{{ form.misc_message.name }}" rows="5"
+                          placeholder="Ihre Nachricht">{{ form.misc_message.data or '' }}</textarea>
             </div>
         </div>
 
-        <!-- Privacy Policy Section -->
         <div class="form-check mb-4">
             <input class="form-check-input" type="checkbox" id="privacy_policy" required>
             <label class="form-check-label" for="privacy_policy">
@@ -133,24 +195,40 @@
         toggleFields();
     });
 
+    function setSectionState(section, isVisible) {
+        section.style.display = isVisible ? 'block' : 'none';
+        section.querySelectorAll('input, textarea, select, button').forEach(function(control) {
+            control.disabled = !isVisible;
+        });
+    }
+
     function toggleFields() {
         var ticketType = document.getElementById('ticket_type').value;
         var fortbildungFields = document.getElementById('fortbildung_fields');
+        var medienberatungFields = document.getElementById('medienberatung_fields');
         var problemFields = document.getElementById('problem_fields');
         var sonstigesFields = document.getElementById('sonstiges_fields');
 
-        // Alle Felder verstecken
-        fortbildungFields.style.display = 'none';
-        problemFields.style.display = 'none';
-        sonstigesFields.style.display = 'none';
-
-        // Nur die entsprechenden Felder anzeigen
         if (ticketType === 'fortbildung') {
-            fortbildungFields.style.display = 'block';
+            setSectionState(fortbildungFields, true);
+            setSectionState(medienberatungFields, false);
+            setSectionState(problemFields, false);
+            setSectionState(sonstigesFields, false);
+        } else if (ticketType === 'medienberatung') {
+            setSectionState(fortbildungFields, false);
+            setSectionState(medienberatungFields, true);
+            setSectionState(problemFields, false);
+            setSectionState(sonstigesFields, false);
         } else if (ticketType === 'sonstiges') {
-            sonstigesFields.style.display = 'block';
+            setSectionState(fortbildungFields, false);
+            setSectionState(medienberatungFields, false);
+            setSectionState(problemFields, false);
+            setSectionState(sonstigesFields, true);
         } else {
-            problemFields.style.display = 'block';
+            setSectionState(fortbildungFields, false);
+            setSectionState(medienberatungFields, false);
+            setSectionState(problemFields, true);
+            setSectionState(sonstigesFields, false);
         }
     }
 
@@ -184,6 +262,17 @@
     }
 
     function validateForm() {
+        var ticketType = document.getElementById('ticket_type').value;
+        if (ticketType === 'problem') {
+            var checkedSteps = Array.from(document.querySelectorAll('#problem_fields input[name="steps"]:checked'))
+                .map(function(input) { return input.value.trim(); })
+                .filter(function(value) { return value !== ''; });
+            document.getElementById('problem_steps').value = checkedSteps.join(', ');
+            if (!document.getElementById('problem_steps').value.trim()) {
+                alert('Bitte mindestens einen Bearbeitungsschritt auswählen.');
+                return false;
+            }
+        }
         return true;
     }
 </script>

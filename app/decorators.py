@@ -4,7 +4,7 @@ from werkzeug.routing import BuildError
 from flask import abort, current_app, flash, redirect, request, url_for
 from flask_login import current_user
 
-from app import ProblemTicketUser, TrainingTicketUser, MiscTicketUser
+from app import ProblemTicketUser, TrainingTicketUser, MiscTicketUser, MediaConsultingTicketUser
 
 
 def _login_redirect():
@@ -87,6 +87,11 @@ def ticket_owner_required(f):
             ticket_user = TrainingTicketUser.query.filter_by(training_ticket_id=ticket_id, user_id=current_user.id).first()
         elif ticket_type == 'misc':
             ticket_user = MiscTicketUser.query.filter_by(misc_ticket_id=ticket_id, user_id=current_user.id).first()
+        elif ticket_type == 'medienberatung':
+            ticket_user = MediaConsultingTicketUser.query.filter_by(
+                media_consulting_ticket_id=ticket_id,
+                user_id=current_user.id,
+            ).first()
         else:
             ticket_user = None
 

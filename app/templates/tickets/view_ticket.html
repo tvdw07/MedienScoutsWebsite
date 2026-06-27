@@ -6,8 +6,27 @@
         <h1>Ticket Details</h1>
         <span class="badge bg-info text-dark">{{ ticket.status.status }}</span>
     </div>
+    {% if ticket_type == 'problem' %}
     <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
     <p><strong>Beschreibung:</strong> {{ ticket.problem_description }}</p>
+    {% elif ticket_type == 'training' %}
+    <p><strong>Lehrer:</strong> {{ ticket.class_teacher }}</p>
+    <p><strong>Trainingstyp:</strong> {{ ticket.training_type }}</p>
+    <p><strong>Grund:</strong> {{ ticket.training_reason }}</p>
+    <p><strong>Vorgeschlagenes Datum:</strong> {{ ticket.proposed_date }}</p>
+    {% elif ticket_type == 'misc' %}
+    <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
+    <p><strong>Nachricht:</strong> {{ ticket.message }}</p>
+    {% elif ticket_type == 'medienberatung' %}
+    <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
+    <p><strong>Email:</strong> {{ ticket.email }}</p>
+    <p><strong>Klasse:</strong> {{ ticket.class_name }}</p>
+    <p><strong>Thema:</strong> {{ ticket.topic }}</p>
+    <p><strong>Beschreibung:</strong> {{ ticket.description }}</p>
+    {% if ticket.proposed_date %}
+    <p><strong>Terminvorschlag:</strong> {{ ticket.proposed_date }}</p>
+    {% endif %}
+    {% endif %}
 
     <!-- Ticket History -->
     <div class="card mt-4 p-3">
@@ -25,7 +44,7 @@
     <!-- Response Form or Closed Message -->
     <div class="card mt-4 p-3">
         <h2 class="card-title">Antworten</h2>
-        {% if ticket.status != 4 %}
+        {% if ticket.status_id != 4 %}
             <form method="POST" action="{{ url_for('main.view_ticket', token=token) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
