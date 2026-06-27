@@ -75,6 +75,11 @@ class EditProfileForm(FlaskForm):
     submit = SubmitField('Save Changes')
 
 
+class TicketResponseForm(FlaskForm):
+    response_message = TextAreaField('Antwort', validators=[DataRequired(), Length(max=5000)])
+    submit = SubmitField('Antwort senden')
+
+
 MEDIA_CONSULTING_TOPIC_CHOICES = [
     ('Social Media', 'Social Media'),
     ('Datenschutz / Privatsphäre', 'Datenschutz / Privatsphäre'),

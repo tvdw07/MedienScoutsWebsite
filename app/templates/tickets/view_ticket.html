@@ -28,7 +28,6 @@
     {% endif %}
     {% endif %}
 
-    <!-- Ticket History -->
     <div class="card mt-4 p-3">
         <h2 class="card-title">Verlauf</h2>
         <ul class="list-group">
@@ -41,21 +40,14 @@
         </ul>
     </div>
 
-    <!-- Response Form or Closed Message -->
-    <div class="card mt-4 p-3">
-        <h2 class="card-title">Antworten</h2>
-        {% if ticket.status_id != 4 %}
-            <form method="POST" action="{{ url_for('main.view_ticket', token=token) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="mb-3">
-                    <label for="response_message" class="form-label">Antwort</label>
-                    <textarea class="form-control" id="response_message" name="response_message" rows="3" required></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary">Antwort senden</button>
-            </form>
-        {% else %}
+    {% if ticket.status_id != 4 %}
+        {% set response_form_action = url_for('main.view_ticket', token=token) %}
+        {% set response_submit_label = 'Antwort senden' %}
+        {% include 'tickets/partials/response_form.html' %}
+    {% else %}
+        <div class="card mt-4 p-3">
             <p>Das Ticket ist geschlossen. Bitte öffnen Sie ein neues Ticket, wenn Sie weitere Probleme haben.</p>
-        {% endif %}
-    </div>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}

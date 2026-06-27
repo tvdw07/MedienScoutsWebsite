@@ -93,18 +93,9 @@
 
     <!-- Response Form -->
     {% if ticket.status_id != 1 and ticket.status_id != 4 %}
-    <div class="card mt-4 p-3">
-        <h2 class="card-title">Antworten</h2>
-        <form method="POST" action="{{ url_for('main.submit_response', ticket_id=ticket.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
-            <div class="mb-3">
-                <label for="response_message" class="form-label">Antwort</label>
-                <textarea class="form-control" id="response_message" name="response_message" rows="3" required></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Antwort senden</button>
-        </form>
-    </div>
+    {% set response_form_action = url_for('main.submit_response', ticket_id=ticket.id) %}
+    {% set response_submit_label = 'Antwort senden' %}
+    {% include 'tickets/partials/response_form.html' %}
     {% endif %}
 </div>
 {% endblock %}

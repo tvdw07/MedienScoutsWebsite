@@ -180,6 +180,20 @@ def test_ticket_overview_lists_media_consulting_ticket(client, app):
     assert b'Digitale Medien' in response.data
 
 
+def test_ticket_details_renders_flask_wtf_response_form(client, app):
+    with app.app_context():
+        admin_id = create_admin_user()
+        ticket = create_media_consulting_ticket(status_id=2)
+        ticket_id = ticket.id
+
+    login_as(client, admin_id)
+    response = client.get(f'/ticket/medienberatung/{ticket_id}/details')
+
+    assert response.status_code == 200
+    assert b'name="response_message"' in response.data
+    assert b'Antwort senden' in response.data
+
+
 def test_public_media_consulting_ticket_creation(client, app, monkeypatch):
     monkeypatch.setattr('app.routes.send_ticket_link', lambda ticket: None)
 
@@ -207,6 +221,18 @@ def test_public_media_consulting_ticket_creation(client, app, monkeypatch):
         assert ticket.description == 'Need support for a workshop.'
         assert ticket.proposed_date is None
         assert ticket.status_id == 1
+
+
+def test_public_media_consulting_ticket_view_renders_flask_wtf_response_form(client, app):
+    with app.app_context():
+        ticket = create_media_consulting_ticket(status_id=2)
+        token = ticket.generate_token()
+
+    response = client.get(f'/ticket/{token}')
+
+    assert response.status_code == 200
+    assert b'name="response_message"' in response.data
+    assert b'Antwort senden' in response.data
 
 
 def test_media_consulting_ticket_response_function(client, app, monkeypatch):

@@ -62,6 +62,7 @@
             </div>
             <div class="mb-3">
                 <label class="form-label">Bisher unternommene Schritte <span class="req">*</span></label>
+                <input type="hidden" id="problem_steps" name="{{ form.problem_steps.name }}" value="{{ form.problem_steps.data or '' }}">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="step1" name="steps" value="neugestartet">
                     <label class="form-check-label" for="step1">Neugestartet <span class="req">*</span></label>

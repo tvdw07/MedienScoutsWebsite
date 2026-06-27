@@ -1,0 +1,17 @@
+<div class="card mt-4 p-3">
+    <h2 class="card-title">{{ response_form_title or 'Antworten' }}</h2>
+    <form method="POST" action="{{ response_form_action }}">
+        {{ response_form.hidden_tag() }}
+        <input type="hidden" name="ticket_type" value="{{ ticket_type }}">
+        <div class="mb-3">
+            {{ response_form.response_message.label(class="form-label") }}
+            {{ response_form.response_message(class="form-control", rows=3) }}
+            {% if response_form.response_message.errors %}
+            <div class="invalid-feedback d-block">
+                {{ response_form.response_message.errors[0] }}
+            </div>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary">{{ response_submit_label or 'Antwort senden' }}</button>
+    </form>
+</div>

@@ -11,7 +11,7 @@ from flask_login import logout_user, login_required, current_user
 from werkzeug.datastructures import CombinedMultiDict, MultiDict
 from werkzeug.utils import secure_filename
 from app.decorators import any_permission_required, permission_required, ticket_owner_required
-from app.forms import EditProfileForm, SendTicketForm
+from app.forms import EditProfileForm, SendTicketForm, TicketResponseForm
 from app.legal import build_legal_context
 from app.models import db, MiscTicket, TrainingTicket, ProblemTicket, ProblemTicketUser, TrainingTicketUser, \
     MiscTicketUser, MediaConsultingTicket, MediaConsultingTicketUser, TicketHistory, User, RoleEnum
@@ -140,7 +140,15 @@ def ticket_details(ticket_type, ticket_id):
 
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket_id).order_by(
         TicketHistory.created_at).all()
-    return render_template('tickets/ticket_details.html', ticket=ticket, ticket_type=ticket_type, ticket_history=ticket_history)
+    response_form = TicketResponseForm()
+    return render_template(
+        'tickets/ticket_details.html',
+        ticket=ticket,
+        ticket_type=ticket_type,
+        ticket_history=ticket_history,
+        response_form=response_form,
+        response_form_action=url_for('main.submit_response', ticket_id=ticket.id),
+    )
 
 
 @bp_main.route('/ticket/<int:ticket_id>/claim', methods=['POST'])
@@ -207,10 +215,14 @@ def request_help(ticket_id):
 @ticket_owner_required
 def submit_response(ticket_id):
     """Submit a response for a specific ticket"""
-    response_message = request.form.get('response_message')
     ticket_type = request.form.get('ticket_type')
+    response_form = TicketResponseForm()
     if not ticket_type:
         flash('Ticket type is required.', 'danger')
+        return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
+
+    if not response_form.validate_on_submit():
+        flash('Please enter a response message.', 'danger')
         return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
     # Update the ticket status to 3
@@ -229,6 +241,7 @@ def submit_response(ticket_id):
 
     # Log the ticket message
     author_type = 'MedienScout: ' + current_user.first_name + ' ' + current_user.last_name
+    response_message = response_form.response_message.data
     log_ticket_message(ticket_type, ticket_id, response_message, author_type)
 
     ticket.status_id = 3
@@ -461,30 +474,42 @@ def view_ticket(token):
         flash('Invalid or expired token', 'danger')
         return redirect(url_for('main.home'))
 
+    response_form = TicketResponseForm()
+
     # Handle the form submission for ticket response
     if request.method == 'POST':
-        response_message = request.form.get('response_message')
-        # Determine the author type based on the ticket type
-        if ticket_type == 'problem':
-            author_type = ticket.first_name + ' ' + ticket.last_name
-        elif ticket_type == 'training':
-            author_type = ticket.class_teacher
-        else:
-            author_type = ticket.first_name + ' ' + ticket.last_name
+        if response_form.validate_on_submit():
+            response_message = response_form.response_message.data
+            # Determine the author type based on the ticket type
+            if ticket_type == 'problem':
+                author_type = ticket.first_name + ' ' + ticket.last_name
+            elif ticket_type == 'training':
+                author_type = ticket.class_teacher
+            else:
+                author_type = ticket.first_name + ' ' + ticket.last_name
 
-        # Log the ticket message and notify the user about the ticket change
-        log_ticket_message(ticket_type, ticket.id, response_message, author_type)
-        flash('Your response has been submitted.', 'success')
-        notify_user_about_ticket_change(ticket, response_message, ticket_type)
+            # Log the ticket message and notify the user about the ticket change
+            log_ticket_message(ticket_type, ticket.id, response_message, author_type)
+            flash('Your response has been submitted.', 'success')
+            notify_user_about_ticket_change(ticket, response_message, ticket_type)
 
-        # Redirect to the same view to display the updated ticket details
-        return redirect(url_for('main.view_ticket', token=token))
+            # Redirect to the same view to display the updated ticket details
+            return redirect(url_for('main.view_ticket', token=token))
+
+        flash('Please enter a response message.', 'danger')
 
     # Retrieve the ticket history and render the ticket details template
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket.id).order_by(
         TicketHistory.created_at).all()
 
-    return render_template('tickets/view_ticket.html', ticket=ticket, token=token, ticket_history=ticket_history)
+    return render_template(
+        'tickets/view_ticket.html',
+        ticket=ticket,
+        token=token,
+        ticket_history=ticket_history,
+        response_form=response_form,
+        response_form_action=url_for('main.view_ticket', token=token),
+    )
 
 
 def log_ticket_message(ticket_type, ticket_id, message, author_type):
