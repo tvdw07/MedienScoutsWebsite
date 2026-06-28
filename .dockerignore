@@ -7,3 +7,6 @@ __pycache__/
 app.db
 logs/
 app/static/uploads/
+.venv
+docs
+tests
