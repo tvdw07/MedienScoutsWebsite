@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 from flask import abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
@@ -42,6 +43,7 @@ def profile():
             previous_picture = current_user.profile_picture
             current_user.profile_picture = None
             current_user.profile_picture_original_name = None
+            current_user.profile_picture_uploaded_at = None
             try:
                 db.session.commit()
             except Exception as exc:
@@ -83,6 +85,7 @@ def profile():
         if new_picture is not None:
             current_user.profile_picture = new_picture
             current_user.profile_picture_original_name = new_original_name
+            current_user.profile_picture_uploaded_at = datetime.now()
 
         try:
             db.session.commit()

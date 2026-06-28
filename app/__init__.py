@@ -1,7 +1,5 @@
 import logging
 import os
-from datetime import datetime, timedelta
-from apscheduler.schedulers.background import BackgroundScheduler
 from flask_migrate import Migrate
 from flask_talisman import Talisman
 from flask import Flask, flash, render_template, redirect, session, url_for
@@ -12,11 +10,9 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from concurrent_log_handler import ConcurrentRotatingFileHandler
 from werkzeug.middleware.proxy_fix import ProxyFix
-from .models import db, User, ProblemTicket, ProblemTicketUser, TicketHistory, TrainingTicket, TrainingTicketUser, \
-    MiscTicket, MiscTicketUser, MediaConsultingTicket, MediaConsultingTicketUser
-from .upload_utils import PROFILE_PICTURE_FOLDER, TICKET_ATTACHMENT_FOLDER, get_upload_folder
+from .maintenance import start_maintenance_scheduler
+from .models import db, User
 import config
-import atexit
 
 
 def create_app():
@@ -153,84 +149,14 @@ def create_app():
     def page_not_found(e):
         return render_template('errors/404.html'), 404
 
-    def delete_old_things():
-        with app.app_context():
-            threshold_date = datetime.now() - timedelta(days=5 * 365)
-            tickets_deleted = False
-            old_problem_tickets = ProblemTicket.query.filter(ProblemTicket.created_at < threshold_date).all()
-            for ticket in old_problem_tickets:
-                ProblemTicketUser.query.filter_by(problem_ticket_id=ticket.id).delete()
-                TicketHistory.query.filter_by(ticket_id=ticket.id, ticket_type='problem').delete()
-                db.session.delete(ticket)
-                tickets_deleted = True
-            old_training_tickets = TrainingTicket.query.filter(TrainingTicket.created_at < threshold_date).all()
-            for ticket in old_training_tickets:
-                TrainingTicketUser.query.filter_by(training_ticket_id=ticket.id).delete()
-                TicketHistory.query.filter_by(ticket_id=ticket.id, ticket_type='training').delete()
-                db.session.delete(ticket)
-                tickets_deleted = True
-            old_misc_tickets = MiscTicket.query.filter(MiscTicket.created_at < threshold_date).all()
-            for ticket in old_misc_tickets:
-                MiscTicketUser.query.filter_by(misc_ticket_id=ticket.id).delete()
-                TicketHistory.query.filter_by(ticket_id=ticket.id, ticket_type='misc').delete()
-                db.session.delete(ticket)
-                tickets_deleted = True
-            old_media_consulting_tickets = MediaConsultingTicket.query.filter(
-                MediaConsultingTicket.created_at < threshold_date
-            ).all()
-            for ticket in old_media_consulting_tickets:
-                MediaConsultingTicketUser.query.filter_by(media_consulting_ticket_id=ticket.id).delete()
-                TicketHistory.query.filter_by(ticket_id=ticket.id, ticket_type='medienberatung').delete()
-                db.session.delete(ticket)
-                tickets_deleted = True
-            if tickets_deleted:
-                app.logger.info('Deleted old tickets')
-                db.session.commit()
-            photo_threshold_date = datetime.now() - timedelta(days=0.5 * 365)
-            for folder_name in (
-                app.config.get('PROFILE_PICTURE_FOLDER', PROFILE_PICTURE_FOLDER),
-                app.config.get('TICKET_ATTACHMENT_FOLDER', TICKET_ATTACHMENT_FOLDER),
-            ):
-                upload_folder = get_upload_folder(folder_name)
-                if not os.path.exists(upload_folder):
-                    continue
-                for filename in os.listdir(upload_folder):
-                    file_path = os.path.join(upload_folder, filename)
-                    if os.path.isfile(file_path):
-                        file_modified_time = datetime.fromtimestamp(os.path.getmtime(file_path))
-                        if file_modified_time < photo_threshold_date:
-                            os.remove(file_path)
-                            app.logger.info(f'Deleted old upload: {filename}')
-            log_threshold_date = datetime.now() - timedelta(days=7)
-            log_file_path = 'logs/app.log'
-            logs_deleted = False
-            if os.path.exists(log_file_path):
-                with open(log_file_path, 'r') as file:
-                    lines = file.readlines()
-                with open(log_file_path, 'w') as file:
-                    for line in lines:
-                        log_date_str = line.split(' ')[0]
-                        log_date = datetime.strptime(log_date_str, '%Y-%m-%d')
-                        if log_date >= log_threshold_date:
-                            file.write(line)
-                        else:
-                            logs_deleted = True
-            if logs_deleted:
-                app.logger.info('Deleted old log entries')
-
-    app.logger.info('Starting scheduler')
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(func=delete_old_things, trigger="interval", days=1)
-    scheduler.start()
-    app.logger.info('Scheduler started')
-    atexit.register(lambda: scheduler.shutdown())
-
     from .blueprints.bp_auth import bp_auth
     from .blueprints.bp_admin import bp_admin
     from .blueprints.main import bp_main
     app.register_blueprint(bp_auth)
     app.register_blueprint(bp_admin)
     app.register_blueprint(bp_main)
+    app.logger.info('Starting maintenance scheduler')
+    start_maintenance_scheduler(app)
     limiter.limit("3 per minute", methods=["POST"])(app.view_functions["auth.login"])
     limiter.limit("1 per minute", methods=["POST"])(app.view_functions["main.send_ticket"])
     limiter.limit("1 per minute", methods=["POST"])(app.view_functions["auth.request_password_reset"])

@@ -30,6 +30,7 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(50), nullable=False)
     profile_picture = db.Column(db.String(200), nullable=True)
     profile_picture_original_name = db.Column(db.String(255), nullable=True)
+    profile_picture_uploaded_at = db.Column(DateTime, nullable=True)
     role = db.Column(db.Enum(RoleEnum), nullable=False, default=RoleEnum.MEMBER)
     active = db.Column(db.Boolean, default=True)
     active_from = db.Column(DateTime, nullable=True)  # Date when the user becomes active
@@ -172,7 +173,7 @@ class ProblemTicket(db.Model):
     steps_taken = db.Column(db.Text, nullable=True)
     photo = db.Column(db.String(200), nullable=True)
     photo_original_name = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     status_id = db.Column(db.Integer, db.ForeignKey('ticket_status.id'), default=1)  # Default to "open"
     status = db.relationship('TicketStatus', backref='problem_tickets')
 
@@ -200,7 +201,7 @@ class TrainingTicket(db.Model):
     training_type = db.Column(db.String(100), nullable=False)
     training_reason = db.Column(db.Text, nullable=True)
     proposed_date = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     status_id = db.Column(db.Integer, db.ForeignKey('ticket_status.id'), default=1)
     status = db.relationship('TicketStatus', backref='training_tickets')
 
@@ -227,7 +228,7 @@ class MiscTicket(db.Model):
     last_name = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(100), nullable=False)
     message = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     status_id = db.Column(db.Integer, db.ForeignKey('ticket_status.id'), default=1)
     status = db.relationship('TicketStatus', backref='misc_tickets')
 
@@ -293,7 +294,7 @@ class MediaConsultingTicket(db.Model):
     topic = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=False)
     proposed_date = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     status_id = db.Column(db.Integer, db.ForeignKey('ticket_status.id'), default=1)
     status = db.relationship('TicketStatus', backref='media_consulting_tickets')
 
@@ -335,7 +336,7 @@ class TicketHistory(db.Model):
     ticket_type = db.Column(db.String(50), nullable=False)
     ticket_id = db.Column(db.Integer, nullable=False)
     message = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     author_type = db.Column(db.String(50), nullable=False)  # Indicates the type of author
 
     def __init__(self, ticket_type, ticket_id, message, author_type):
