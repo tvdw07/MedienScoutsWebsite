@@ -4,7 +4,6 @@ from pathlib import Path
 from flask import Flask
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
-from sqlalchemy import inspect
 
 from app.blueprints.bp_admin import bp_admin
 from app.blueprints.bp_auth import bp_auth
@@ -55,7 +54,7 @@ def create_test_app(tmp_path, *, csrf_enabled=False, database_name='regression.d
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        return User.load_from_session_identifier(user_id)
 
     app.register_blueprint(bp_auth)
     app.register_blueprint(bp_admin)
@@ -78,13 +77,11 @@ def create_test_app(tmp_path, *, csrf_enabled=False, database_name='regression.d
 
 
 def login_as(client, user):
-    if isinstance(user, int):
-        user_id = user
-    else:
-        state = inspect(user)
-        user_id = state.identity[0] if state.identity else user.id
+    user_id = user if isinstance(user, int) else user.id
+    with client.application.app_context():
+        resolved_user = db.session.get(User, user_id)
     with client.session_transaction() as session:
-        session['_user_id'] = str(user_id)
+        session['_user_id'] = resolved_user.get_id()
         session['_fresh'] = True
 
 

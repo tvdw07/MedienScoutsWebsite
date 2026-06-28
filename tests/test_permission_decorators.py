@@ -30,7 +30,7 @@ def app(tmp_path):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        return User.load_from_session_identifier(user_id)
 
     @app.route('/login')
     def login():
@@ -59,8 +59,10 @@ def client(app):
 
 
 def login_as(client, user):
+    with client.application.app_context():
+        resolved_user = db.session.get(User, user.id)
     with client.session_transaction() as session:
-        session['_user_id'] = str(user.id)
+        session['_user_id'] = resolved_user.get_id()
         session['_fresh'] = True
 
 

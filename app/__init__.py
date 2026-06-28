@@ -114,7 +114,7 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        return User.load_from_session_identifier(user_id)
 
     @app.context_processor
     def inject_user():

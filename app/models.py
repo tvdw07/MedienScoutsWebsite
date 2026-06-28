@@ -36,6 +36,7 @@ class User(UserMixin, db.Model):
     active_from = db.Column(DateTime, nullable=True)  # Date when the user becomes active
     active_until = db.Column(DateTime, nullable=True)  # Date when the user becomes inactive
     last_login = db.Column(db.DateTime, nullable=True)
+    session_version = db.Column(db.Integer, nullable=False, default=0)
 
     user_roles = db.relationship(
         'UserRole',
@@ -56,6 +57,30 @@ class User(UserMixin, db.Model):
 
     def set_password(self, password):
         self.password_hash = password_hasher.hash(password)
+        self.session_version = (self.session_version or 0) + 1
+
+    def get_id(self):
+        if self.id is None:
+            return None
+        return f'{self.id}:{self.session_version or 0}'
+
+    @staticmethod
+    def load_from_session_identifier(session_identifier):
+        if not session_identifier:
+            return None
+
+        try:
+            raw_user_id, raw_session_version = str(session_identifier).split(':', 1)
+            user_id = int(raw_user_id)
+            session_version = int(raw_session_version)
+        except (AttributeError, TypeError, ValueError):
+            return None
+
+        user = db.session.get(User, user_id)
+        if not user or (user.session_version or 0) != session_version:
+            return None
+
+        return user
 
     def check_password(self, password):
         if not self.password_hash:

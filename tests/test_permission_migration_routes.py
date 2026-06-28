@@ -45,7 +45,7 @@ def app(tmp_path):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        return User.load_from_session_identifier(user_id)
 
     app.register_blueprint(bp_auth)
     app.register_blueprint(bp_admin)
@@ -74,8 +74,11 @@ def client(app):
 
 
 def login_as(client, user):
+    user_id = user if isinstance(user, int) else user.id
+    with client.application.app_context():
+        resolved_user = db.session.get(User, user_id)
     with client.session_transaction() as session:
-        session['_user_id'] = str(user)
+        session['_user_id'] = resolved_user.get_id()
         session['_fresh'] = True
 
 

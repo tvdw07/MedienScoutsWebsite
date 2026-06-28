@@ -44,6 +44,30 @@ def test_set_password_uses_argon2_hash(app):
         assert user.check_password('wrong-password') is False
 
 
+def test_set_password_bumps_session_version_and_invalidates_old_session_identifier(app):
+    with app.app_context():
+        user = User(
+            username='session-user',
+            email='session-user@example.com',
+            first_name='Test',
+            last_name='User',
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        old_session_identifier = user.get_id()
+
+        user.set_password('Secret123!')
+        db.session.commit()
+
+        stored_user = db.session.get(User, user.id)
+        assert stored_user is not None
+        assert stored_user.session_version == 1
+        assert stored_user.get_id() == f'{stored_user.id}:1'
+        assert User.load_from_session_identifier(old_session_identifier) is None
+        assert User.load_from_session_identifier(stored_user.get_id()).id == stored_user.id
+
+
 def test_old_password_hash_is_rejected(app):
     with app.app_context():
         user = User(

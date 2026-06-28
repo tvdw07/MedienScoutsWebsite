@@ -195,9 +195,10 @@ def test_login_accepts_valid_csrf_token(csrf_client, csrf_app):
         stored_user = db.session.get(User, user_id)
         assert stored_user is not None
         assert stored_user.last_login is not None
+        expected_session_id = stored_user.get_id()
 
     with csrf_client.session_transaction() as session:
-        assert session['_user_id'] == str(user_id)
+        assert session['_user_id'] == expected_session_id
 
 
 def test_inactive_user_cannot_log_in_with_valid_csrf(csrf_client, csrf_app):
@@ -308,6 +309,44 @@ def test_public_ticket_reply_with_csrf_records_history(csrf_client, csrf_app, mo
         entries = TicketHistory.query.filter_by(ticket_type='medienberatung', ticket_id=ticket_id).all()
         assert len(entries) == 1
         assert entries[0].message == 'We will review this with the school team.'
+
+
+def test_password_reset_invalidates_existing_session_and_allows_new_login(client, app):
+    with app.app_context():
+        profile_role = create_role('ProfileViewer', ['profile.view'])
+        user = create_user('reset-user', 'reset-user@example.com', roles=[profile_role])
+        user_id = user.id
+        username = user.username
+        token = user.generate_reset_password_token()
+
+    login_as(client, user_id)
+    assert client.get('/profile').status_code == 200
+
+    reset_response = client.post(
+        f'/reset_password/{token}/{user_id}',
+        data={
+            'password': 'NewSecret123!',
+            'confirm_password': 'NewSecret123!',
+        },
+        follow_redirects=False,
+    )
+    assert reset_response.status_code == 302
+
+    protected_response = client.get('/profile')
+    assert protected_response.status_code == 302
+    assert '/login' in protected_response.headers['Location']
+
+    login_response = client.post(
+        '/login',
+        data={
+            'username': username,
+            'password': 'NewSecret123!',
+        },
+        follow_redirects=False,
+    )
+    assert login_response.status_code == 302
+
+    assert client.get('/profile').status_code == 200
 
 
 def test_media_consulting_ticket_details_respect_assignment_and_permissions(client, app):
