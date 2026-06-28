@@ -165,6 +165,169 @@ def test_user_management_regression(client, app):
     assert allow_response.get_json()['permission_sources']['tickets.archive'] == ['role:Teacher', 'user_allow']
 
 
+def test_user_cannot_grant_permission_to_self_without_having_it(client, app):
+    with app.app_context():
+        manager_role = create_role('SelfPermissionManager', ['users.manage_permissions'])
+        self_user_id = create_user('self-permission-manager', 'self-permission@example.com', roles=[manager_role])
+        permission_id = Permission.query.filter_by(name='tickets.reply').one().id
+
+    login_as(client, self_user_id)
+    response = client.post(
+        f'/members/user/{self_user_id}/permissions',
+        json={'action': 'allow', 'permission_id': permission_id, 'reason': 'Self test'},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'You can only grant permissions you already have.'
+
+    with app.app_context():
+        stored_user = db.session.get(User, self_user_id)
+        assert stored_user is not None
+        assert stored_user.permission_overrides == []
+
+
+def test_user_cannot_grant_role_to_self_with_additional_permissions(client, app):
+    with app.app_context():
+        manager_role = create_role('SelfRoleManager', ['users.manage_roles'])
+        elevated_role = create_role('ElevatedReplyRole', ['tickets.reply'])
+        self_user_id = create_user('self-role-manager', 'self-role@example.com', roles=[manager_role])
+        role_id = elevated_role.id
+
+    login_as(client, self_user_id)
+    response = client.post(
+        f'/members/user/{self_user_id}/roles',
+        json={'action': 'add', 'role_id': role_id},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'You can only assign roles whose permissions you already have.'
+
+    with app.app_context():
+        stored_user = db.session.get(User, self_user_id)
+        assert stored_user is not None
+        assert {role.name for role in stored_user.roles} == {'SelfRoleManager'}
+
+
+def test_user_cannot_grant_permission_not_effectively_owned_to_other_user(client, app):
+    with app.app_context():
+        manager_role = create_role('OtherPermissionManager', ['users.manage_permissions'])
+        actor_id = create_user('other-permission-manager', 'other-permission@example.com', roles=[manager_role])
+        target_id = create_user('permission-target', 'permission-target@example.com')
+        permission_id = Permission.query.filter_by(name='tickets.reply').one().id
+
+    login_as(client, actor_id)
+    response = client.post(
+        f'/members/user/{target_id}/permissions',
+        json={'action': 'allow', 'permission_id': permission_id, 'reason': 'Needs access'},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'You can only grant permissions you already have.'
+
+    with app.app_context():
+        stored_target = db.session.get(User, target_id)
+        assert stored_target is not None
+        assert stored_target.permission_overrides == []
+
+
+def test_user_cannot_grant_role_not_effectively_owned_to_other_user(client, app):
+    with app.app_context():
+        manager_role = create_role('OtherRoleManager', ['users.manage_roles'])
+        elevated_role = create_role('DelegatedReplyRole', ['tickets.reply'])
+        actor_id = create_user('other-role-manager', 'other-role-manager@example.com', roles=[manager_role])
+        target_id = create_user('role-target', 'role-target@example.com')
+        role_id = elevated_role.id
+
+    login_as(client, actor_id)
+    response = client.post(
+        f'/members/user/{target_id}/roles',
+        json={'action': 'add', 'role_id': role_id},
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()['error'] == 'You can only assign roles whose permissions you already have.'
+
+    with app.app_context():
+        stored_target = db.session.get(User, target_id)
+        assert stored_target is not None
+        assert stored_target.roles == []
+
+
+def test_user_with_matching_effective_permissions_can_grant_allowed_roles_and_permissions(client, app):
+    with app.app_context():
+        delegator_role = create_role(
+            'Delegator',
+            ['users.manage_roles', 'users.manage_permissions', 'tickets.reply'],
+        )
+        grantable_role = create_role('GrantableReplyRole', ['tickets.reply'])
+        actor_id = create_user('delegator', 'delegator@example.com', roles=[delegator_role])
+        target_id = create_user('grant-target', 'grant-target@example.com')
+        permission_id = Permission.query.filter_by(name='tickets.reply').one().id
+        role_id = grantable_role.id
+
+    login_as(client, actor_id)
+    permission_response = client.post(
+        f'/members/user/{target_id}/permissions',
+        json={'action': 'allow', 'permission_id': permission_id, 'reason': 'Delegated access'},
+    )
+    assert permission_response.status_code == 200
+
+    role_response = client.post(
+        f'/members/user/{target_id}/roles',
+        json={'action': 'add', 'role_id': role_id},
+    )
+    assert role_response.status_code == 200
+
+    with app.app_context():
+        stored_target = db.session.get(User, target_id)
+        assert stored_target is not None
+        assert stored_target.has_permission('tickets.reply') is True
+        assert {role.name for role in stored_target.roles} == {'GrantableReplyRole'}
+
+
+def test_user_cannot_remove_own_last_management_role(client, app):
+    with app.app_context():
+        role_manager_role = create_role('OwnRoleManager', ['users.manage_roles'])
+        role_manager_id = create_user('own-role-manager', 'own-role-manager@example.com', roles=[role_manager_role])
+        role_id = role_manager_role.id
+
+    login_as(client, role_manager_id)
+    role_response = client.post(
+        f'/members/user/{role_manager_id}/roles',
+        json={'action': 'remove', 'role_id': role_id},
+    )
+    assert role_response.status_code == 400
+    assert role_response.get_json()['error'] == 'You cannot remove your own admin access.'
+
+    with app.app_context():
+        stored_role_manager = db.session.get(User, role_manager_id)
+        assert stored_role_manager is not None
+        assert {role.name for role in stored_role_manager.roles} == {'OwnRoleManager'}
+
+def test_user_cannot_remove_own_last_management_permission(client, app):
+    with app.app_context():
+        permission_manager_role = create_role('OwnPermissionManager', ['users.manage_permissions'])
+        permission_manager_id = create_user(
+            'own-permission-manager',
+            'own-permission-manager@example.com',
+            roles=[permission_manager_role],
+        )
+        permission_id = Permission.query.filter_by(name='users.manage_permissions').one().id
+
+    login_as(client, permission_manager_id)
+    permission_response = client.post(
+        f'/members/user/{permission_manager_id}/permissions',
+        json={'action': 'deny', 'permission_id': permission_id, 'reason': 'Self test'},
+    )
+    assert permission_response.status_code == 400
+    assert permission_response.get_json()['error'] == 'You cannot remove your own admin access.'
+
+    with app.app_context():
+        stored_permission_manager = db.session.get(User, permission_manager_id)
+        assert stored_permission_manager is not None
+        assert stored_permission_manager.has_permission('users.manage_permissions') is True
+
+
 def test_user_with_account_role_but_no_assigned_roles_does_not_grant_privileges(client, app):
     with app.app_context():
         account_admin_id = create_user('account-admin', 'account-admin@example.com', role=RoleEnum.ADMIN)

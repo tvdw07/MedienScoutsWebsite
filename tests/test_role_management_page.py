@@ -197,7 +197,7 @@ def test_system_role_cannot_be_deleted(client, app):
 
 def test_permission_assignment_works(client, app):
     with app.app_context():
-        assigner_role = create_role('RoleAssigner', ['roles.assign_permissions'])
+        assigner_role = create_role('RoleAssigner', ['roles.assign_permissions', 'tickets.reply'])
         target_role = create_role('SupportTeam', ['tickets.view'])
         assigner = create_user('role-assigner', 'assigner@example.com', roles=[assigner_role])
         assigner_id = assigner.id

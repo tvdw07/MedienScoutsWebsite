@@ -36,6 +36,12 @@ ADMIN_ACCESS_PERMISSIONS = {
     'admin.manage_settings',
 }
 
+MANAGEMENT_ACCESS_PERMISSIONS = {
+    'users.manage_roles',
+    'users.manage_permissions',
+    'roles.assign_permissions',
+}
+
 
 def _user_display_name(user):
     if not user:
@@ -117,6 +123,22 @@ def _has_admin_access_from_state(roles, overrides, active=True):
 
 def _has_admin_access(user):
     return _has_admin_access_from_state(user.roles, user.permission_overrides, user.active)
+
+
+def _has_management_access_from_state(roles, overrides, active=True):
+    return bool(_effective_permissions_from_state(roles, overrides, active) & MANAGEMENT_ACCESS_PERMISSIONS)
+
+
+def _has_management_access(user):
+    return _has_management_access_from_state(user.roles, user.permission_overrides, user.active)
+
+
+def _role_permission_names(role):
+    return {
+        permission.name
+        for permission in role.permissions
+        if permission and permission.name
+    }
 
 
 def _build_user_detail_payload(user):
@@ -384,7 +406,12 @@ def update_user_roles(user_id):
     if not role:
         return jsonify({'error': 'Role not found'}), 404
 
+    actor_permissions = current_user.get_effective_permissions()
+    if action == 'add' and not _role_permission_names(role).issubset(actor_permissions):
+        return jsonify({'error': 'You can only assign roles whose permissions you already have.'}), 400
+
     self_admin_access = user.id == current_user.id and _has_admin_access(user)
+    self_management_access = user.id == current_user.id and _has_management_access(user)
     changed = False
     if action == 'add' and role not in user.roles:
         user.roles.append(role)
@@ -393,7 +420,10 @@ def update_user_roles(user_id):
         user.roles.remove(role)
         changed = True
 
-    if changed and self_admin_access and not _has_admin_access(user):
+    if changed and (
+        (self_admin_access and not _has_admin_access(user))
+        or (self_management_access and not _has_management_access(user))
+    ):
         db.session.rollback()
         return jsonify({'error': 'You cannot remove your own admin access.'}), 400
 
@@ -426,7 +456,12 @@ def update_user_permissions(user_id):
     if not permission:
         return jsonify({'error': 'Permission not found'}), 404
 
+    actor_permissions = current_user.get_effective_permissions()
+    if action == 'allow' and permission.name not in actor_permissions:
+        return jsonify({'error': 'You can only grant permissions you already have.'}), 400
+
     self_admin_access = user.id == current_user.id and _has_admin_access(user)
+    self_management_access = user.id == current_user.id and _has_management_access(user)
     existing_override = next(
         (override for override in user.permission_overrides if override.permission_id == permission.id),
         None,
@@ -449,7 +484,10 @@ def update_user_permissions(user_id):
         db.session.delete(existing_override)
         changed = True
 
-    if changed and self_admin_access and not _has_admin_access(user):
+    if changed and (
+        (self_admin_access and not _has_admin_access(user))
+        or (self_management_access and not _has_management_access(user))
+    ):
         db.session.rollback()
         return jsonify({'error': 'You cannot remove your own admin access.'}), 400
 
@@ -650,6 +688,12 @@ def delete_role(role_id):
             current_user.active,
         ):
             return jsonify({'error': 'You cannot remove your own admin access.'}), 400
+        if _has_management_access(current_user) and not _has_management_access_from_state(
+            future_roles,
+            current_user.permission_overrides,
+            current_user.active,
+        ):
+            return jsonify({'error': 'You cannot remove your own admin access.'}), 400
 
     db.session.delete(role)
     db.session.commit()
@@ -678,7 +722,7 @@ def update_role_permissions(role_id):
         return jsonify({'error': 'Permission not found'}), 404
 
     current_permission_ids = {existing_permission.id for existing_permission in role.permissions}
-    self_admin_access = current_user.is_authenticated and any(user.id == current_user.id for user in role.users)
+    self_role_access = current_user.is_authenticated and any(user.id == current_user.id for user in role.users)
 
     if role.is_system_role and _role_has_all_permissions(role):
         future_permission_ids = set(current_permission_ids)
@@ -699,7 +743,11 @@ def update_role_permissions(role_id):
         role.permissions.remove(permission)
         changed = True
 
-    if changed and self_admin_access and not _has_admin_access(current_user):
+    if changed and self_role_access and not _has_admin_access(current_user):
+        db.session.rollback()
+        return jsonify({'error': 'You cannot remove your own admin access.'}), 400
+
+    if changed and self_role_access and not _has_management_access(current_user):
         db.session.rollback()
         return jsonify({'error': 'You cannot remove your own admin access.'}), 400
 
