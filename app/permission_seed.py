@@ -2,10 +2,6 @@ from app.models import (
     db,
     Permission,
     Role,
-    RoleEnum,
-    RolePermission,
-    User,
-    UserRole,
 )
 
 
@@ -84,13 +80,6 @@ STANDARD_ROLE_DEFINITIONS = {
     },
 }
 
-LEGACY_ROLE_TO_STANDARD_ROLE = {
-    RoleEnum.ADMIN.value: 'Admin',
-    RoleEnum.TEACHER.value: 'Teacher',
-    RoleEnum.MEMBER.value: 'User',
-}
-
-
 def seed_permissions_and_roles(session=None, commit=True):
     session = session or db.session
 
@@ -129,22 +118,6 @@ def seed_permissions_and_roles(session=None, commit=True):
                 continue
             role.permissions.append(permissions_by_name[permission_name])
             existing_permission_names.add(permission_name)
-
-    session.flush()
-
-    for user in session.query(User).all():
-        if not user.role:
-            continue
-        standard_role_name = LEGACY_ROLE_TO_STANDARD_ROLE.get(user.role.value)
-        if not standard_role_name:
-            continue
-
-        target_role = roles_by_name[standard_role_name]
-        if any(user_role.role_id == target_role.id for user_role in user.user_roles):
-            continue
-        user.roles.append(target_role)
-
-    session.flush()
 
     if commit:
         session.commit()

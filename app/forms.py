@@ -6,6 +6,8 @@ from wtforms.validators import DataRequired, EqualTo, Length, Optional
 from wtforms.validators import ValidationError
 import re
 
+from app.upload_utils import PROFILE_PICTURE_EXTENSIONS, TICKET_ATTACHMENT_EXTENSIONS
+
 
 # Custom validator for password policy
 class PasswordPolicy:
@@ -70,7 +72,7 @@ class EditProfileForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
     email = StringField('Email', validators=[DataRequired(), SimpleEmail()])
-    profile_image = FileField('Profile Image', validators=[FileAllowed(['jpg', 'png', 'jpeg'])])
+    profile_image = FileField('Profile Image', validators=[FileAllowed(sorted(PROFILE_PICTURE_EXTENSIONS))])
     delete_image = SubmitField('Delete Profile Image')
     submit = SubmitField('Save Changes')
 
@@ -111,7 +113,7 @@ class SendTicketForm(FlaskForm):
     problem_serial_number = StringField('Seriennummer', validators=[Optional(), Length(max=50)])
     problem_description = TextAreaField('Beschreibung des Problems', validators=[Optional()])
     problem_steps = HiddenField()
-    photo = FileField('Foto', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'])])
+    photo = FileField('Foto', validators=[Optional(), FileAllowed(sorted(TICKET_ATTACHMENT_EXTENSIONS))])
 
     training_class_teacher = StringField('Klassenlehrer', validators=[Optional(), Length(max=50)])
     training_email = StringField('E-Mail-Adresse', validators=[Optional(), SimpleEmail(), Length(max=100)])

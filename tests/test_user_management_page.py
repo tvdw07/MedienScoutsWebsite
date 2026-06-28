@@ -9,7 +9,7 @@ from app.blueprints.bp_admin import bp_admin
 from app.blueprints.bp_auth import bp_auth
 from app.models import Permission, Role, RoleEnum, User, UserPermissionOverride, db
 from app.permission_seed import seed_permissions_and_roles
-from app.routes import bp_main
+from app.blueprints.main import bp_main
 
 
 @pytest.fixture()
@@ -24,10 +24,15 @@ def app(tmp_path):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SECRET_KEY='test-secret-key',
         SECURITY_PASSWORD_SALT='test-security-salt',
+        APP_BASE_URL='https://example.com',
         WTF_CSRF_ENABLED=False,
         TICKET_TOKEN_MAX_AGE_SECONDS=3600,
-        UPLOAD_FOLDER=str(tmp_path / 'uploads'),
-        USER_PROFILES=str(tmp_path / 'profiles'),
+        MAX_CONTENT_LENGTH=6 * 1024 * 1024,
+        MAX_PROFILE_IMAGE_SIZE=2 * 1024 * 1024,
+        MAX_TICKET_ATTACHMENT_SIZE=5 * 1024 * 1024,
+        UPLOAD_ROOT=str(tmp_path / 'instance' / 'uploads'),
+        PROFILE_PICTURE_FOLDER='profile_pictures',
+        TICKET_ATTACHMENT_FOLDER='tickets',
     )
 
     db.init_app(app)
@@ -369,21 +374,25 @@ def test_admin_can_create_user(client, app):
     assert response.status_code == 201
     payload = response.get_json()
     assert payload['user']['username'] == 'new-user'
-    assert [role['name'] for role in payload['active_roles']] == ['User']
+    assert payload['active_roles'] == []
+    assert payload['effective_permissions'] == []
 
     with app.app_context():
         assert User.query.count() == initial_count + 1
         created_user = User.query.filter_by(username='new-user').one()
-        assert {role.name for role in created_user.roles} == {'User'}
+        assert {role.name for role in created_user.roles} == set()
+        assert created_user.permission_overrides == []
 
 
-def test_admin_can_create_user_with_custom_role(client, app):
+def test_admin_can_create_user_ignores_roles_and_permissions(client, app):
     with app.app_context():
         custom_role = create_role('Support', ['tickets.view'])
+        custom_permission = Permission.query.filter_by(name='tickets.archive').one()
         admin_role = Role.query.filter_by(name='Admin').one()
         admin = create_user('admin-user', 'admin@example.com', roles=[admin_role], role=RoleEnum.ADMIN)
         admin_id = admin.id
         custom_role_id = custom_role.id
+        custom_permission_id = custom_permission.id
 
     login_as(client, admin_id)
     response = client.post(
@@ -395,13 +404,19 @@ def test_admin_can_create_user_with_custom_role(client, app):
             'email': 'role-user@example.com',
             'password': 'Secret123!',
             'role_ids': [custom_role_id],
+            'roles': [custom_role_id],
+            'permission_ids': [custom_permission_id],
+            'privileges': ['tickets.archive'],
         },
     )
 
     assert response.status_code == 201
     payload = response.get_json()
-    assert [role['name'] for role in payload['active_roles']] == ['Support']
+    assert payload['active_roles'] == []
+    assert payload['effective_permissions'] == []
 
     with app.app_context():
         created_user = User.query.filter_by(username='role-user').one()
-        assert {role.name for role in created_user.roles} == {'Support'}
+        assert {role.name for role in created_user.roles} == set()
+        assert created_user.permission_overrides == []
+

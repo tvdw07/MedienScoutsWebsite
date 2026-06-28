@@ -17,6 +17,7 @@ def app(tmp_path):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SECRET_KEY='test-secret-key',
         SECURITY_PASSWORD_SALT='test-security-salt',
+        APP_BASE_URL='https://example.com',
         WTF_CSRF_ENABLED=False,
     )
 

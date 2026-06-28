@@ -9,7 +9,7 @@ from app.blueprints.bp_admin import bp_admin
 from app.blueprints.bp_auth import bp_auth
 from app.models import Permission, Role, RoleEnum, User, db
 from app.permission_seed import seed_permissions_and_roles
-from app.routes import bp_main
+from app.blueprints.main import bp_main
 
 
 @pytest.fixture()
@@ -24,10 +24,15 @@ def app(tmp_path):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SECRET_KEY='test-secret-key',
         SECURITY_PASSWORD_SALT='test-security-salt',
+        APP_BASE_URL='https://example.com',
         WTF_CSRF_ENABLED=False,
         TICKET_TOKEN_MAX_AGE_SECONDS=3600,
-        UPLOAD_FOLDER=str(tmp_path / 'uploads'),
-        USER_PROFILES=str(tmp_path / 'profiles'),
+        MAX_CONTENT_LENGTH=6 * 1024 * 1024,
+        MAX_PROFILE_IMAGE_SIZE=2 * 1024 * 1024,
+        MAX_TICKET_ATTACHMENT_SIZE=5 * 1024 * 1024,
+        UPLOAD_ROOT=str(tmp_path / 'instance' / 'uploads'),
+        PROFILE_PICTURE_FOLDER='profile_pictures',
+        TICKET_ATTACHMENT_FOLDER='tickets',
     )
 
     db.init_app(app)
@@ -165,20 +170,21 @@ def test_user_without_ticket_rights_sees_no_internal_ticket_links(client, app):
     assert b'href="/archiv"' not in response.data
 
 
-def test_legacy_route_and_navigation_are_removed(client, app):
+def test_forum_route_is_removed(client, app):
     with app.app_context():
         admin_role = db.session.query(Role).filter_by(name='Admin').one()
         admin_id = create_user('admin-forum-check', 'admin-forum-check@example.com', roles=[admin_role], role=RoleEnum.ADMIN)
 
     login_as(client, admin_id)
     profile_response = client.get('/profile')
-    legacy_response = client.get('/forum')
+    removed_response = client.get('/forum')
 
     assert profile_response.status_code == 200
     assert b'href="/forum"' not in profile_response.data
-    assert legacy_response.status_code == 404
+    assert removed_response.status_code == 404
 
 
 def test_message_model_is_not_registered(app):
     with app.app_context():
         assert 'message' not in db.metadata.tables
+

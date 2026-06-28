@@ -28,12 +28,13 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://medienscouts:medienscouts@postgres:5432/medienscouts
       RATELIMIT_STORAGE_URI: redis://redis:6379/1
-      UPLOAD_FOLDER: static/uploads
-      USER_PROFILES: static/uploads/profiles
+      MAX_CONTENT_LENGTH: 6291456
+      MAX_PROFILE_IMAGE_SIZE: 2097152
+      MAX_TICKET_ATTACHMENT_SIZE: 5242880
     ports:
       - "8000:8000"
     volumes:
-      - app_uploads:/app/app/static/uploads
+      - instance_data:/app/instance
     restart: unless-stopped
     depends_on:
       postgres:
@@ -43,4 +44,4 @@ services:
 
 volumes:
   postgres_data:
-  app_uploads:
+  instance_data:

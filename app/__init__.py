@@ -14,6 +14,7 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler
 from werkzeug.middleware.proxy_fix import ProxyFix
 from .models import db, User, ProblemTicket, ProblemTicketUser, TicketHistory, TrainingTicket, TrainingTicketUser, \
     MiscTicket, MiscTicketUser, MediaConsultingTicket, MediaConsultingTicketUser
+from .upload_utils import PROFILE_PICTURE_FOLDER, TICKET_ATTACHMENT_FOLDER, get_upload_folder
 import config
 import atexit
 
@@ -186,15 +187,20 @@ def create_app():
                 app.logger.info('Deleted old tickets')
                 db.session.commit()
             photo_threshold_date = datetime.now() - timedelta(days=0.5 * 365)
-            upload_folder = app.config['UPLOAD_FOLDER']
-            if os.path.exists(upload_folder):
+            for folder_name in (
+                app.config.get('PROFILE_PICTURE_FOLDER', PROFILE_PICTURE_FOLDER),
+                app.config.get('TICKET_ATTACHMENT_FOLDER', TICKET_ATTACHMENT_FOLDER),
+            ):
+                upload_folder = get_upload_folder(folder_name)
+                if not os.path.exists(upload_folder):
+                    continue
                 for filename in os.listdir(upload_folder):
                     file_path = os.path.join(upload_folder, filename)
                     if os.path.isfile(file_path):
                         file_modified_time = datetime.fromtimestamp(os.path.getmtime(file_path))
                         if file_modified_time < photo_threshold_date:
                             os.remove(file_path)
-                            app.logger.info(f'Deleted old photo: {filename}')
+                            app.logger.info(f'Deleted old upload: {filename}')
             log_threshold_date = datetime.now() - timedelta(days=7)
             log_file_path = 'logs/app.log'
             logs_deleted = False

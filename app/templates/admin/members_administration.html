@@ -142,11 +142,6 @@
                                     <input type="password" class="form-control" id="createUserPassword"
                                            autocomplete="new-password" required>
                                 </div>
-                                <div class="mb-3">
-                                    <label for="createUserRoles" class="form-label">Initial roles</label>
-                                    <select class="form-select" id="createUserRoles" multiple size="5"></select>
-                                    <div class="form-text">The User role is selected by default. Additional roles can be assigned here.</div>
-                                </div>
                             </form>
                             <dl class="row mb-0" id="userMasterData">
                                 <dt class="col-5 text-muted">Username</dt>
@@ -251,7 +246,6 @@
     const createUserLastName = document.getElementById('createUserLastName');
     const createUserEmail = document.getElementById('createUserEmail');
     const createUserPassword = document.getElementById('createUserPassword');
-    const createUserRoles = document.getElementById('createUserRoles');
 
     const escapeMap = {
         '&': '&amp;',
@@ -289,18 +283,6 @@
         `;
     }
 
-    function renderCreateRoleOptions(roles) {
-        if (!roles.length) {
-            createUserRoles.innerHTML = '<option value="" disabled>No roles available</option>';
-            return;
-        }
-
-        createUserRoles.innerHTML = roles.map((role) => {
-            const selected = role.name === 'User' ? ' selected' : '';
-            return `<option value="${role.id}"${selected}>${escapeHtml(role.name)}</option>`;
-        }).join('');
-    }
-
     function renderDefinitionList(user) {
         const activeBadge = user.active
             ? '<span class="badge bg-success">Active</span>'
@@ -314,8 +296,8 @@
             <dd class="col-7 mb-2">${escapeHtml(user.full_name || fallbackName)}</dd>
             <dt class="col-5 text-muted">Email</dt>
             <dd class="col-7 mb-2">${escapeHtml(user.email || '-')}</dd>
-            <dt class="col-5 text-muted">Legacy role</dt>
-            <dd class="col-7 mb-2">${escapeHtml(user.role || '-')}</dd>
+            <dt class="col-5 text-muted">Account role</dt>
+            <dd class="col-7 mb-2">${escapeHtml(user.account_role || '-')}</dd>
             <dt class="col-5 text-muted">Status</dt>
             <dd class="col-7 mb-2">${activeBadge}</dd>
             <dt class="col-5 text-muted">Active from</dt>
@@ -434,11 +416,10 @@
             createUserLastName.value = user.last_name || '';
             createUserEmail.value = user.email || '';
             createUserPassword.value = '';
-            renderCreateRoleOptions(detail.available_roles || []);
             rolePermissionHint.textContent = 'Create the user first to manage roles and permissions.';
             permissionReasonContainer.classList.add('d-none');
-            activeRolesList.innerHTML = '<span class="text-muted">Create the user first.</span>';
-            availableRolesList.innerHTML = '<span class="text-muted">Select initial roles in the form on the left.</span>';
+            activeRolesList.innerHTML = '<span class="text-muted">None</span>';
+            availableRolesList.innerHTML = '<span class="text-muted">None</span>';
             effectivePermissionsCount.textContent = '0 effective permissions';
             effectivePermissionsList.innerHTML = '<span class="text-muted">Create the user first.</span>';
             permissionTableBody.innerHTML = `
@@ -553,12 +534,6 @@
         window.location.reload();
     }
 
-    function selectedRoleIds() {
-        return Array.from(createUserRoles.selectedOptions)
-            .map((option) => parseInt(option.value, 10))
-            .filter((value) => Number.isInteger(value));
-    }
-
     async function createUser() {
         const payload = {
             username: createUserUsername.value.trim(),
@@ -566,7 +541,6 @@
             last_name: createUserLastName.value.trim(),
             email: createUserEmail.value.trim(),
             password: createUserPassword.value,
-            role_ids: selectedRoleIds(),
         };
 
         await fetchJson(`{{ url_for('admin.create_user') }}`, {

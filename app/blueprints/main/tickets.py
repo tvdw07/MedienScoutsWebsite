@@ -1,6 +1,8 @@
-import app.routes as legacy_routes
-from flask import current_app, flash, redirect, render_template, request, url_for
+import os
+
+from flask import abort, current_app, flash, redirect, render_template, request, send_from_directory, url_for
 from flask_login import current_user
+from werkzeug.exceptions import HTTPException
 
 from app.decorators import any_permission_required, permission_required, ticket_owner_required
 from app.forms import SendTicketForm, TicketResponseForm
@@ -31,6 +33,19 @@ from app.ticket_notifications import (
     create_ticket_assignment_notification,
     mark_ticket_assignment_notifications_read,
 )
+from app.upload_utils import (
+    TICKET_ATTACHMENT_FOLDER,
+    UploadValidationError,
+    get_upload_folder,
+    normalize_stored_filename,
+)
+from email_tools import (
+    notify_admin,
+    notify_client,
+    notify_user_about_ticket_assignment,
+    notify_user_about_ticket_change,
+    send_ticket_link,
+)
 
 from . import bp_main
 from .utils import build_send_ticket_formdata, log_ticket_message, parse_optional_datetime, save_ticket_photo
@@ -45,6 +60,31 @@ def _load_ticket(ticket_type, ticket_id):
     if not ticket_model:
         return None
     return db.session.get(ticket_model, ticket_id)
+
+
+def _load_problem_ticket_attachment(ticket):
+    if not ticket:
+        return None, None
+
+    photo_filename = normalize_stored_filename(ticket.photo)
+    if not photo_filename:
+        return None, None
+
+    upload_folder = get_upload_folder(current_app.config.get('TICKET_ATTACHMENT_FOLDER', TICKET_ATTACHMENT_FOLDER))
+    file_path = os.path.join(upload_folder, photo_filename)
+    if not os.path.exists(file_path):
+        return None, None
+
+    return upload_folder, photo_filename
+
+
+def _send_problem_ticket_attachment(upload_folder, photo_filename):
+    response = send_from_directory(upload_folder, photo_filename, max_age=0)
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.private = True
+    response.headers['Pragma'] = 'no-cache'
+    return response
 
 
 def _user_display_name(user):
@@ -115,7 +155,7 @@ def _apply_ticket_assignment(ticket_type, ticket, assignee_user, actor_user):
             assigned_by_name=actor_name,
         )
         db.session.commit()
-        legacy_routes.notify_user_about_ticket_assignment(
+        notify_user_about_ticket_assignment(
             ticket,
             ticket_type,
             assignee_user,
@@ -186,6 +226,12 @@ def ticket_details(ticket_type, ticket_id):
     if can_assign_ticket:
         assignable_users = User.query.filter_by(active=True).order_by(User.last_name, User.first_name, User.username).all()
 
+    attachment_url = None
+    attachment_label = None
+    if ticket_type == 'problem' and ticket.photo:
+        attachment_url = url_for('main.ticket_attachment', ticket_type=ticket_type, ticket_id=ticket.id)
+        attachment_label = ticket.photo_original_name or 'Hochgeladenes Bild'
+
     ticket_history = TicketHistory.query.filter_by(ticket_type=ticket_type, ticket_id=ticket_id).order_by(
         TicketHistory.created_at
     ).all()
@@ -201,6 +247,8 @@ def ticket_details(ticket_type, ticket_id):
         ticket_history=ticket_history,
         response_form=response_form,
         response_form_action=url_for('main.submit_response', ticket_id=ticket.id),
+        attachment_url=attachment_url,
+        attachment_label=attachment_label,
     )
 
 
@@ -288,7 +336,7 @@ def request_help(ticket_id):
         flash('Invalid ticket type.', 'danger')
         return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
-    legacy_routes.notify_admin(ticket, ticket_type, 'Help is requested for the following ticket:')
+    notify_admin(ticket, ticket_type, 'Help is requested for the following ticket:')
     flash(f'Help request has been sent for ticket ID: {ticket_id}', 'info')
     return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
 
@@ -324,7 +372,7 @@ def submit_response(ticket_id):
     ticket.status_id = 3
     db.session.commit()
 
-    legacy_routes.notify_client(ticket, response_message)
+    notify_client(ticket, response_message)
 
     flash(f'Response has been submitted for ticket ID: {ticket_id}', 'info')
     return redirect(url_for('main.ticket_details', ticket_id=ticket_id, ticket_type=ticket_type))
@@ -374,9 +422,17 @@ def send_ticket():
                     flash('Please fill in all the required fields.', 'danger')
                     return render_template('tickets/ticket.html', form=form)
                 photo = form.photo.data
-                photo_path = save_ticket_photo(photo, form.problem_first_name.data, form.problem_last_name.data)
-                if photo and photo_path is None:
-                    return render_template('tickets/ticket.html', form=form)
+                photo_filename = None
+                photo_original_name = None
+                if photo:
+                    try:
+                        photo_filename, photo_original_name = save_ticket_photo(photo)
+                    except UploadValidationError as exc:
+                        current_app.logger.warning('Ticket image upload rejected: %s', exc)
+                        flash(exc.message, 'danger')
+                        if exc.status_code == 413:
+                            abort(413)
+                        return render_template('tickets/ticket.html', form=form), exc.status_code
                 ticket = ProblemTicket(
                     first_name=form.problem_first_name.data,
                     last_name=form.problem_last_name.data,
@@ -385,7 +441,8 @@ def send_ticket():
                     serial_number=form.problem_serial_number.data or None,
                     problem_description=form.problem_description.data,
                     steps_taken=', '.join(steps_taken),
-                    photo=photo_path,
+                    photo=photo_filename,
+                    photo_original_name=photo_original_name,
                     status_id=1,
                 )
                 current_app.logger.info('Problem ticket submitted')
@@ -432,10 +489,12 @@ def send_ticket():
             db.session.add(ticket)
             db.session.commit()
 
-            legacy_routes.send_ticket_link(ticket)
+            send_ticket_link(ticket)
 
             flash(f'Ticket submitted successfully! Type: {ticket_type}', 'success')
             return redirect(url_for('main.home'))
+        except HTTPException:
+            raise
         except Exception as exc:
             db.session.rollback()
             current_app.logger.error(f'Error while submitting ticket: {exc}')
@@ -467,6 +526,11 @@ def view_ticket(token):
         return redirect(url_for('main.home'))
 
     response_form = TicketResponseForm()
+    attachment_url = None
+    attachment_label = None
+    if ticket_type == 'problem' and ticket.photo:
+        attachment_url = url_for('main.ticket_attachment_public', token=token)
+        attachment_label = ticket.photo_original_name or 'Hochgeladenes Bild'
 
     if request.method == 'POST':
         if response_form.validate_on_submit():
@@ -480,7 +544,7 @@ def view_ticket(token):
 
             log_ticket_message(ticket_type, ticket.id, response_message, author_type)
             flash('Your response has been submitted.', 'success')
-            legacy_routes.notify_user_about_ticket_change(ticket, response_message, ticket_type)
+            notify_user_about_ticket_change(ticket, response_message, ticket_type)
             return redirect(url_for('main.view_ticket', token=token))
 
         flash('Please enter a response message.', 'danger')
@@ -492,8 +556,39 @@ def view_ticket(token):
     return render_template(
         'tickets/view_ticket.html',
         ticket=ticket,
+        ticket_type=ticket_type,
         token=token,
         ticket_history=ticket_history,
         response_form=response_form,
         response_form_action=url_for('main.view_ticket', token=token),
+        attachment_url=attachment_url,
+        attachment_label=attachment_label,
     )
+
+
+@bp_main.route('/ticket/<string:token>/attachment')
+def ticket_attachment_public(token):
+    ticket = ProblemTicket.verify_token(token)
+    if not ticket:
+        abort(404)
+
+    upload_folder, photo_filename = _load_problem_ticket_attachment(ticket)
+    if not upload_folder or not photo_filename:
+        abort(404)
+
+    return _send_problem_ticket_attachment(upload_folder, photo_filename)
+
+
+@bp_main.route('/ticket/<string:ticket_type>/<int:ticket_id>/attachment')
+@any_permission_required(['tickets.view', 'tickets.view_all'])
+@ticket_owner_required
+def ticket_attachment(ticket_type, ticket_id):
+    ticket = _load_ticket(ticket_type, ticket_id)
+    if ticket_type != 'problem' or not ticket:
+        abort(404)
+
+    upload_folder, photo_filename = _load_problem_ticket_attachment(ticket)
+    if not upload_folder or not photo_filename:
+        abort(404)
+
+    return _send_problem_ticket_attachment(upload_folder, photo_filename)

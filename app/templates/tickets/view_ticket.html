@@ -9,6 +9,7 @@
     {% if ticket_type == 'problem' %}
     <p><strong>Name:</strong> {{ ticket.first_name }} {{ ticket.last_name }}</p>
     <p><strong>Beschreibung:</strong> {{ ticket.problem_description }}</p>
+    {% include 'tickets/partials/problem_attachment.html' %}
     {% elif ticket_type == 'training' %}
     <p><strong>Lehrer:</strong> {{ ticket.class_teacher }}</p>
     <p><strong>Trainingstyp:</strong> {{ ticket.training_type }}</p>

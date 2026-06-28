@@ -91,6 +91,7 @@
         <p><strong>Beschreibung:</strong> {{ ticket.problem_description }}</p>
         <p><strong>Schritte unternommen:</strong> {{ ticket.steps_taken }}</p>
         <p><strong>Seriennummer:</strong> {{ ticket.serial_number }}</p>
+        {% include 'tickets/partials/problem_attachment.html' %}
         {% elif ticket_type == 'training' %}
         <h2 class="card-title">Training Ticket</h2>
         <p><strong>Lehrer:</strong> {{ ticket.class_teacher }}</p>

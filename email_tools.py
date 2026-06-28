@@ -4,7 +4,9 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from flask import url_for, current_app
+from flask import current_app
+
+from url_utils import build_absolute_url
 
 
 class EmailTemplate:
@@ -658,22 +660,44 @@ reset_password_template = EmailTemplate(
 
 def send_ticket_link(ticket):
     token = ticket.generate_token()
-    link = url_for('main.view_ticket', token=token, _external=True)
+    link = build_absolute_url('main.view_ticket', token=token)
     send_email(ticket_link_template, ticket.email, link=link)
     current_app.logger.info(f"Sent ticket link for ticket {ticket.id}")
 
 
-def notify_admin(ticket, ticket_type, message):
+def _get_admin_recipient():
     from app.models import User
-    admin = User.query.filter_by(role='ADMIN', active=True).first()
-    link = url_for('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
+
+    admin_permissions = {
+        'admin.view',
+        'admin.view_statistics',
+        'admin.manage_settings',
+    }
+
+    for user in User.query.filter_by(active=True).order_by(User.id).all():
+        if any(user.has_permission(permission_name) for permission_name in admin_permissions):
+            return user
+
+    return None
+
+
+def notify_admin(ticket, ticket_type, message):
+    admin = _get_admin_recipient()
+    if not admin:
+        current_app.logger.error(f'No admin recipient found for ticket {ticket.id}')
+        return
+
+    link = build_absolute_url('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type)
     send_email(notify_admin_template, admin.email, message=message, link=link)
     current_app.logger.info(f"Sent admin notification about new ticket {ticket.id}")
 
 
 def inform_admin(headline, message):
-    from app.models import User
-    admin = User.query.filter_by(role='ADMIN', active=True).first()
+    admin = _get_admin_recipient()
+    if not admin:
+        current_app.logger.error('No admin recipient found for system notification')
+        return
+
     send_email(
         inform_admin_template,
         recipient=admin.email,
@@ -688,7 +712,7 @@ def inform_admin(headline, message):
 
 def notify_client(ticket, message):
     token = ticket.generate_token()
-    link = url_for('main.view_ticket', token=token, _external=True)
+    link = build_absolute_url('main.view_ticket', token=token)
     send_email(notify_client_about_ticket_change_template, ticket.email, response_message=message, link=link)
     current_app.logger.info(f"Sent client notification about ticket {ticket.id}")
 
@@ -713,7 +737,7 @@ def notify_user_about_ticket_change(ticket, message, ticket_type):
     if responsible_user:
         user = User.query.get(responsible_user.user_id)
         if user:
-            link = url_for('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
+            link = build_absolute_url('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type)
             send_email(notify_user_about_ticket_change_template, user.email, response_message=message, link=link)
             current_app.logger.info(f"Sent user notification about ticket {ticket.id}")
         else:
@@ -732,7 +756,7 @@ def notify_user_about_ticket_assignment(ticket, ticket_type, user, assigned_by_n
         'medienberatung': 'Medienberatung',
     }
     ticket_type_label = ticket_type_label_map.get(ticket_type, 'Ticket')
-    link = url_for('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type, _external=True)
+    link = build_absolute_url('main.ticket_details', ticket_id=ticket.id, ticket_type=ticket_type)
     assigned_by_block = f'<p>Zuordnung durch: {assigned_by_name}</p>' if assigned_by_name else ''
     send_email(
         ticket_assignment_template,
@@ -747,6 +771,6 @@ def notify_user_about_ticket_assignment(ticket, ticket_type, user, assigned_by_n
 
 def send_reset_email(user):
     token = user.generate_reset_password_token()
-    reset_url = url_for('auth.reset_password', token=token, user_id=user.id, _external=True)
+    reset_url = build_absolute_url('auth.reset_password', token=token, user_id=user.id)
     send_email(reset_password_template, user.email, reset_url=reset_url)
     current_app.logger.info(f"Sent password reset email for user {user.id}")

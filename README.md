@@ -22,7 +22,6 @@ The application is split into focused blueprints instead of a single route modul
 - `app/blueprints/bp_auth.py` for authentication
 - `app/blueprints/bp_admin.py` for administration
 
-The legacy `app/routes.py` import path still exists as a thin compatibility wrapper.
 Details are documented in [docs/project-structure.md](docs/project-structure.md).
 
 ## Permission System
@@ -63,6 +62,28 @@ The legal pages read their operator-specific data from `LEGAL_*` environment var
 - `LEGAL_STORAGE_DURATION_TEXT`
 
 If a value is omitted, the pages fall back to neutral placeholders or built-in defaults where appropriate.
+
+## Application Base URL
+Absolute links in emails are built from `APP_BASE_URL`. Set it to the public origin of the deployment, for example:
+
+```env
+APP_BASE_URL=https://example.com
+```
+
+## Uploads
+Uploaded profile pictures and ticket attachments are stored below `instance/uploads/` and are never served from
+`/static`.
+
+Configured defaults:
+
+```env
+UPLOAD_ROOT=uploads
+PROFILE_PICTURE_FOLDER=profile_pictures
+TICKET_ATTACHMENT_FOLDER=tickets
+MAX_CONTENT_LENGTH=6291456
+MAX_PROFILE_IMAGE_SIZE=2097152
+MAX_TICKET_ATTACHMENT_SIZE=5242880
+```
 
 ## Installation
 
@@ -123,11 +144,17 @@ nano .env
 
 ### Step 8: Datenbank initialisieren
 
-Make sure PostgreSQL and Redis are running, then execute the following script to create the database tables and apply
-migrations:
+Make sure PostgreSQL and Redis are running, then execute the following script to initialize the schema from the current
+models and seed the core lookup data:
 
 ```bash
 python setup_db.py
+```
+
+If you need to rebuild the database from scratch, run:
+
+```bash
+python setup_db.py --reset
 ```
 
 ### Step 9: (Optional) Test the application
@@ -155,13 +182,15 @@ docker compose up --build
 ```
 
 The container runs `python setup_db.py` before starting Gunicorn on port `8000`.
-PostgreSQL data is stored in the `postgres_data` volume, uploads in the `app_uploads` volume.
+PostgreSQL data is stored in the `postgres_data` volume, uploads in the `instance_data` volume under
+`/app/instance/uploads/`.
 For production behind HTTPS, set:
 
 ```env
 APP_ENV=production
 FORCE_HTTPS=true
 SESSION_COOKIE_SECURE=true
+APP_BASE_URL=https://example.com
 ```
 
 PostgreSQL and Redis are started as part of the compose stack. For local development without Docker, point

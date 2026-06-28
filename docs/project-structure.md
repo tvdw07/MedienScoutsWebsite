@@ -17,8 +17,3 @@ The `main` blueprint is split by concern:
 
 - `app/blueprints/bp_auth.py` for login and password reset flows
 - `app/blueprints/bp_admin.py` for administration views, the ticket overview, and JSON APIs
-
-## Compatibility Layer
-
-`app/routes.py` now only re-exports the main blueprint and email helper hooks for older imports and tests.
-New code should import the blueprint from `app.blueprints.main`.

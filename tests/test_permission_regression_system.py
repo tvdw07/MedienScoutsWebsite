@@ -9,7 +9,7 @@ from app.blueprints.bp_admin import bp_admin
 from app.blueprints.bp_auth import bp_auth
 from app.models import Permission, ProblemTicket, Role, RoleEnum, TicketStatus, User, UserPermissionOverride, db
 from app.permission_seed import seed_permissions_and_roles
-from app.routes import bp_main
+from app.blueprints.main import bp_main
 
 
 @pytest.fixture()
@@ -24,10 +24,15 @@ def app(tmp_path):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SECRET_KEY='test-secret-key',
         SECURITY_PASSWORD_SALT='test-security-salt',
+        APP_BASE_URL='https://example.com',
         WTF_CSRF_ENABLED=False,
         TICKET_TOKEN_MAX_AGE_SECONDS=3600,
-        UPLOAD_FOLDER=str(tmp_path / 'uploads'),
-        USER_PROFILES=str(tmp_path / 'profiles'),
+        MAX_CONTENT_LENGTH=6 * 1024 * 1024,
+        MAX_PROFILE_IMAGE_SIZE=2 * 1024 * 1024,
+        MAX_TICKET_ATTACHMENT_SIZE=5 * 1024 * 1024,
+        UPLOAD_ROOT=str(tmp_path / 'instance' / 'uploads'),
+        PROFILE_PICTURE_FOLDER='profile_pictures',
+        TICKET_ATTACHMENT_FOLDER='tickets',
     )
 
     db.init_app(app)
@@ -158,6 +163,26 @@ def test_user_management_regression(client, app):
     )
     assert allow_response.status_code == 200
     assert allow_response.get_json()['permission_sources']['tickets.archive'] == ['role:Teacher', 'user_allow']
+
+
+def test_user_with_account_role_but_no_assigned_roles_does_not_grant_privileges(client, app):
+    with app.app_context():
+        account_admin_id = create_user('account-admin', 'account-admin@example.com', role=RoleEnum.ADMIN)
+
+    login_as(client, account_admin_id)
+
+    admin_panel_response = client.get('/admin/panel')
+    members_response = client.get('/members/administration')
+
+    assert admin_panel_response.status_code == 403
+    assert members_response.status_code == 403
+
+    with app.app_context():
+        stored_user = db.session.get(User, account_admin_id)
+        assert stored_user is not None
+        assert stored_user.roles == []
+        assert stored_user.has_permission('admin.view') is False
+        assert stored_user.has_permission('admin.view_statistics') is False
 
 
 def test_admin_cannot_remove_own_admin_role(client, app):
@@ -293,18 +318,18 @@ def test_ticket_access_regression(client, app):
 
 
 def test_public_ticket_links_regression(client, app, monkeypatch):
-    monkeypatch.setattr('app.routes.send_ticket_link', lambda ticket: None)
+    monkeypatch.setattr('app.blueprints.main.tickets.send_ticket_link', lambda ticket: None)
 
     create_response = client.post(
         '/send_ticket',
         data={
             'ticket_type': 'problem',
-            'first_name': 'Grace',
-            'last_name': 'Hopper',
-            'email_problem': 'grace@example.com',
-            'class': '10A',
+            'problem_first_name': 'Grace',
+            'problem_last_name': 'Hopper',
+            'problem_email': 'grace@example.com',
+            'problem_class_name': '10A',
             'problem_description': 'Projector is broken',
-            'steps': ['Checked cables', 'Restarted'],
+            'problem_steps': 'Checked cables, Restarted',
         },
     )
     assert create_response.status_code == 302
@@ -332,3 +357,4 @@ def test_permission_deny_override_regression(client, app):
     login_as(client, admin_id)
     response = client.get('/profile')
     assert response.status_code == 403
+

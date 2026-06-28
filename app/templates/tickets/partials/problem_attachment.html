@@ -1,0 +1,14 @@
+{% if attachment_url %}
+<div class="mt-4 pt-3 border-top">
+    <h3 class="h5 mb-3">Hochgeladenes Bild</h3>
+    <figure class="mb-0">
+        <img src="{{ attachment_url }}"
+             alt="{{ attachment_label or 'Hochgeladenes Bild' }}"
+             class="img-fluid border rounded"
+             loading="lazy">
+        {% if attachment_label %}
+        <figcaption class="text-muted small mt-2">Datei: {{ attachment_label }}</figcaption>
+        {% endif %}
+    </figure>
+</div>
+{% endif %}

@@ -9,7 +9,7 @@ from app.blueprints.bp_admin import bp_admin
 from app.blueprints.bp_auth import bp_auth
 from app.models import db, ProblemTicket, Role, TicketStatus, User
 from app.permission_seed import seed_permissions_and_roles
-from app.routes import bp_main
+from app.blueprints.main import bp_main
 
 
 @pytest.fixture()
@@ -24,10 +24,15 @@ def app(tmp_path):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SECRET_KEY='test-secret-key',
         SECURITY_PASSWORD_SALT='test-security-salt',
+        APP_BASE_URL='https://example.com',
         WTF_CSRF_ENABLED=False,
         TICKET_TOKEN_MAX_AGE_SECONDS=3600,
-        UPLOAD_FOLDER=str(tmp_path / 'uploads'),
-        USER_PROFILES=str(tmp_path / 'profiles'),
+        MAX_CONTENT_LENGTH=6 * 1024 * 1024,
+        MAX_PROFILE_IMAGE_SIZE=2 * 1024 * 1024,
+        MAX_TICKET_ATTACHMENT_SIZE=5 * 1024 * 1024,
+        UPLOAD_ROOT=str(tmp_path / 'instance' / 'uploads'),
+        PROFILE_PICTURE_FOLDER='profile_pictures',
+        TICKET_ATTACHMENT_FOLDER='tickets',
     )
 
     db.init_app(app)
@@ -124,8 +129,8 @@ def test_user_without_ticket_rights_sees_no_internal_tickets(client, app):
     assert response.status_code == 403
 
 
-def test_public_ticket_creation_still_works(client, app, monkeypatch):
-    monkeypatch.setattr('app.routes.send_ticket_link', lambda ticket: None)
+def test_public_ticket_creation_rejects_old_field_names(client, app, monkeypatch):
+    monkeypatch.setattr('app.blueprints.main.tickets.send_ticket_link', lambda ticket: None)
 
     response = client.post(
         '/send_ticket',
@@ -136,13 +141,12 @@ def test_public_ticket_creation_still_works(client, app, monkeypatch):
             'email_problem': 'ada@example.com',
             'class': '9A',
             'problem_description': 'Notebook will not boot',
-            'steps': ['Pressed power', 'Waited'],
         },
     )
 
-    assert response.status_code == 302
+    assert response.status_code == 200
     with app.app_context():
-        assert ProblemTicket.query.count() == 1
+        assert ProblemTicket.query.count() == 0
 
 
 def test_public_ticket_link_still_works(client, app):
@@ -164,3 +168,4 @@ def test_public_ticket_link_still_works(client, app):
 
     assert response.status_code == 200
     assert b'Ticket Details' in response.data
+

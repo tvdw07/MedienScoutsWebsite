@@ -28,7 +28,7 @@ This document lists every standard permission defined in `app/permission_seed.py
 | Permission                 | Status     | Description                                                                                                                             |
 | -------------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `users.view`               | ✅ Active   | Allows access to `GET /members/administration` and `GET /members/user/<user_id>`. Displays the user management entry in the admin menu. |
-| `users.create`             | ✅ Active   | Allows creating new users via `POST /members/user`.                                                                                     |
+| `users.create`             | ✅ Active   | Allows creating new users via `POST /members/user`. The request only applies master data and email; role and permission assignment fields are ignored. |
 | `users.edit`               | ⏳ Reserved | Defined but currently not enforced by any route.                                                                                        |
 | `users.deactivate`         | ✅ Active   | Allows changing a user's active state via `POST /members/user/<user_id>/status`.                                                        |
 | `users.delete`             | ⏳ Reserved | Defined but currently unused.                                                                                                           |
@@ -63,5 +63,5 @@ This document lists every standard permission defined in `app/permission_seed.py
 
 | Permission     | Status   | Description                                                                                                                                     |
 | -------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `profile.view` | ✅ Active | Allows access to `GET /profile` and `GET /profile_picture/<first_name>_<last_name>`. Displays the profile entry in the navigation bar.          |
+| `profile.view` | ✅ Active | Allows access to `GET /profile` and the authenticated user's `GET /profile_picture/<user_id>` route. Displays the profile entry in the navigation bar. |
 | `profile.edit` | ✅ Active | Allows editing profile information, uploading/removing profile images, and sending password reset emails via `POST /send_password_reset_email`. |

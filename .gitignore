@@ -1,6 +1,6 @@
 .env
 logs/
-app/static/uploads/
+instance/uploads/
 **/__pycache__/
 *.pyc
 /migrations/*

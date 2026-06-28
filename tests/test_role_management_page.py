@@ -10,7 +10,7 @@ from app.blueprints.bp_admin import bp_admin
 from app.blueprints.bp_auth import bp_auth
 from app.models import Permission, Role, RoleEnum, User, db
 from app.permission_seed import seed_permissions_and_roles
-from app.routes import bp_main
+from app.blueprints.main import bp_main
 
 
 @pytest.fixture()
@@ -25,10 +25,15 @@ def app(tmp_path):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SECRET_KEY='test-secret-key',
         SECURITY_PASSWORD_SALT='test-security-salt',
+        APP_BASE_URL='https://example.com',
         WTF_CSRF_ENABLED=False,
         TICKET_TOKEN_MAX_AGE_SECONDS=3600,
-        UPLOAD_FOLDER=str(tmp_path / 'uploads'),
-        USER_PROFILES=str(tmp_path / 'profiles'),
+        MAX_CONTENT_LENGTH=6 * 1024 * 1024,
+        MAX_PROFILE_IMAGE_SIZE=2 * 1024 * 1024,
+        MAX_TICKET_ATTACHMENT_SIZE=5 * 1024 * 1024,
+        UPLOAD_ROOT=str(tmp_path / 'instance' / 'uploads'),
+        PROFILE_PICTURE_FOLDER='profile_pictures',
+        TICKET_ATTACHMENT_FOLDER='tickets',
     )
 
     db.init_app(app)
@@ -249,3 +254,4 @@ def test_admin_cannot_accidentally_strip_own_admin_rights(client, app):
         stored_role = db.session.get(Role, admin_role_id)
         after_permission_names = {permission.name for permission in stored_role.permissions}
         assert after_permission_names == before_permission_names
+

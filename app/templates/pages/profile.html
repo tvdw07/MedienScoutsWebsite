@@ -9,7 +9,7 @@
         <div class="row">
             <div class="col-md-4">
                 <div class="card">
-                    <img src="{{ url_for('main.profile_picture', first_name=current_user.first_name.replace(' ', '_'), last_name=current_user.last_name.replace(' ', '_')) }}"
+                    <img src="{{ url_for('main.profile_picture', user_id=current_user.id) }}"
                          alt="Profile Picture" class="card-img-top">
                     <div class="card-body text-center">
                         <h5 class="card-title">{{ current_user.first_name }} {{ current_user.last_name }}</h5>

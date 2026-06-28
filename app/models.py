@@ -1,15 +1,16 @@
 import enum
 
+from argon2 import PasswordHasher
 from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from sqlalchemy import DateTime
 from sqlalchemy.ext.associationproxy import association_proxy
 
 db = SQLAlchemy()
+password_hasher = PasswordHasher()
 
 
 # Enum for user roles
@@ -27,6 +28,8 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
+    profile_picture = db.Column(db.String(200), nullable=True)
+    profile_picture_original_name = db.Column(db.String(255), nullable=True)
     role = db.Column(db.Enum(RoleEnum), nullable=False, default=RoleEnum.MEMBER)
     active = db.Column(db.Boolean, default=True)
     active_from = db.Column(DateTime, nullable=True)  # Date when the user becomes active
@@ -51,10 +54,22 @@ class User(UserMixin, db.Model):
     roles = association_proxy('user_roles', 'role', creator=lambda role: UserRole(role=role))
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.password_hash = password_hasher.hash(password)
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        if not self.password_hash:
+            return False
+
+        if not isinstance(self.password_hash, str) or not self.password_hash.startswith('$argon2'):
+            return False
+
+        try:
+            is_valid = password_hasher.verify(self.password_hash, password)
+        except Exception:
+            return False
+        if is_valid and password_hasher.check_needs_rehash(self.password_hash):
+            self.password_hash = password_hasher.hash(password)
+        return is_valid
 
     def _collect_permission_sources(self):
         if not self.active:
@@ -126,10 +141,12 @@ class User(UserMixin, db.Model):
     def validate_reset_password_token(token, user_id):
         serializer = URLSafeTimedSerializer(current_app.secret_key)
         try:
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
+            if not user:
+                return None
             salt = user.password_hash if user.password_hash else current_app.config['SECURITY_PASSWORD_SALT']
             data = serializer.loads(token, salt=salt, max_age=3600)
-            user = User.query.get(data['id'])
+            user = db.session.get(User, data['id'])
             if user and user.email == data['email']:
                 return user
         except (SignatureExpired, BadSignature):
@@ -153,7 +170,8 @@ class ProblemTicket(db.Model):
     serial_number = db.Column(db.String(50), nullable=True)
     problem_description = db.Column(db.Text, nullable=False)
     steps_taken = db.Column(db.Text, nullable=True)
-    photo = db.Column(db.String(200), nullable=True)  # Assuming file path stored
+    photo = db.Column(db.String(200), nullable=True)
+    photo_original_name = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now())
     status_id = db.Column(db.Integer, db.ForeignKey('ticket_status.id'), default=1)  # Default to "open"
     status = db.relationship('TicketStatus', backref='problem_tickets')
@@ -171,7 +189,7 @@ class ProblemTicket(db.Model):
             return None
         if data.get('ticket_type') != 'problem':
             return None
-        return ProblemTicket.query.get(data['ticket_id'])
+        return db.session.get(ProblemTicket, data['ticket_id'])
 
 
 # Training ticket model
@@ -199,7 +217,7 @@ class TrainingTicket(db.Model):
             return None
         if data.get('ticket_type') != 'training':
             return None
-        return TrainingTicket.query.get(data['ticket_id'])
+        return db.session.get(TrainingTicket, data['ticket_id'])
 
 
 # Miscellaneous ticket model
@@ -226,7 +244,7 @@ class MiscTicket(db.Model):
             return None
         if data.get('ticket_type') != 'misc':
             return None
-        return MiscTicket.query.get(data['ticket_id'])
+        return db.session.get(MiscTicket, data['ticket_id'])
 
 
 # Problem ticket user association model
@@ -292,7 +310,7 @@ class MediaConsultingTicket(db.Model):
             return None
         if data.get('ticket_type') != 'medienberatung':
             return None
-        return MediaConsultingTicket.query.get(data['ticket_id'])
+        return db.session.get(MediaConsultingTicket, data['ticket_id'])
 
 
 # Media consulting ticket user association model

@@ -1,68 +1,70 @@
 import os
-import subprocess
+import sys
 
 from app import create_app
-from app.models import db, TicketStatus, User
+from app.models import Role, RoleEnum, TicketStatus, User, db
 from app.permission_seed import seed_permissions_and_roles
-from flask_migrate import upgrade
 
-
-os.environ['FLASK_APP'] = 'wsgi.py'
 
 app = create_app()
 
-with app.app_context():
-    if not os.path.exists('migrations'):
-        subprocess.run(['flask', 'db', 'init'], check=True)
-        print('Migrations-Verzeichnis wurde erstellt.')
 
-    upgrade()
-    print('Vorhandene Migrationen wurden angewendet.')
-
-    try:
-        subprocess.run(['flask', 'db', 'migrate', '-m', 'Automatische Migration'], check=True)
-        print('Neue Migration wurde erstellt.')
-    except subprocess.CalledProcessError as e:
-        print('Fehler beim Erstellen der Migration - moeglicherweise ist keine Aenderung vorhanden oder DB nicht aktuell.')
-        print(e)
-
-    upgrade()
-    print('Datenbank ist aktuell.')
-
+def _seed_ticket_statuses():
     status_values = {
-        1: 'Offen',
-        2: 'In Bearbeitung',
-        3: 'Rueckmeldung gesendet',
-        4: 'Geloest',
+        1: 'Open',
+        2: 'In Progress',
+        3: 'Waiting',
+        4: 'Solved',
     }
+
     for status_id, status_name in status_values.items():
         status = db.session.get(TicketStatus, status_id)
-        if status:
-            status.status = status_name
-        else:
+        if status is None:
             db.session.add(TicketStatus(id=status_id, status=status_name))
-    db.session.commit()
-    print('Ticket-Statuswerte sind angelegt.')
-
-    admin_user = User.query.filter_by(role='ADMIN').first()
-    if not admin_user:
-        admin_password = os.environ.get('ADMIN_PASSWORD')
-        if admin_password:
-            admin = User(
-                username=os.environ.get('ADMIN_USERNAME', 'admin'),
-                first_name=os.environ.get('ADMIN_FIRST_NAME', 'Admin'),
-                last_name=os.environ.get('ADMIN_LAST_NAME', 'User'),
-                role='ADMIN',
-                email=os.environ.get('ADMIN_EMAIL', 'admin@example.com')
-            )
-            admin.set_password(admin_password)
-            db.session.add(admin)
-            db.session.commit()
-            print('Initialer Admin-User wurde aus Umgebungsvariablen angelegt.')
         else:
-            print('Kein Admin-User vorhanden. Setze ADMIN_PASSWORD in .env, um einen initialen Admin anzulegen.')
-    else:
-        print('Admin-User existiert bereits.')
+            status.status = status_name
 
+
+def _bootstrap_admin_user():
+    admin_password = os.environ.get('ADMIN_PASSWORD')
+    if not admin_password:
+        print('No ADMIN_PASSWORD configured. Skipping bootstrap admin user.')
+        return
+
+    username = os.environ.get('ADMIN_USERNAME', 'admin').strip()
+    email = os.environ.get('ADMIN_EMAIL', 'admin@example.com').strip()
+    first_name = os.environ.get('ADMIN_FIRST_NAME', 'Admin').strip()
+    last_name = os.environ.get('ADMIN_LAST_NAME', 'User').strip()
+
+    admin_role = Role.query.filter_by(name='Admin').one()
+    admin_user = User.query.filter_by(username=username).one_or_none()
+    if admin_user is None:
+        admin_user = User(
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            role=RoleEnum.ADMIN,
+            email=email,
+        )
+        admin_user.set_password(admin_password)
+        admin_user.roles.append(admin_role)
+        db.session.add(admin_user)
+    else:
+        admin_user.first_name = first_name
+        admin_user.last_name = last_name
+        admin_user.email = email
+        if admin_role not in admin_user.roles:
+            admin_user.roles.append(admin_role)
+        if not admin_user.password_hash:
+            admin_user.set_password(admin_password)
+
+
+with app.app_context():
+    if '--reset' in sys.argv:
+        db.drop_all()
+    db.create_all()
     seed_permissions_and_roles()
-    print('Permissionen und Standardrollen sind angelegt.')
+    _seed_ticket_statuses()
+    _bootstrap_admin_user()
+    db.session.commit()
+    print('Database initialized from the current schema.')

@@ -20,7 +20,7 @@ from app.models import (
     db,
 )
 from app.permission_seed import seed_permissions_and_roles
-from app.routes import bp_main
+from app.blueprints.main import bp_main
 
 
 @pytest.fixture()
@@ -35,10 +35,15 @@ def app(tmp_path):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SECRET_KEY='test-secret-key',
         SECURITY_PASSWORD_SALT='test-security-salt',
+        APP_BASE_URL='https://example.com',
         WTF_CSRF_ENABLED=False,
         TICKET_TOKEN_MAX_AGE_SECONDS=3600,
-        UPLOAD_FOLDER=str(tmp_path / 'uploads'),
-        USER_PROFILES=str(tmp_path / 'profiles'),
+        MAX_CONTENT_LENGTH=6 * 1024 * 1024,
+        MAX_PROFILE_IMAGE_SIZE=2 * 1024 * 1024,
+        MAX_TICKET_ATTACHMENT_SIZE=5 * 1024 * 1024,
+        UPLOAD_ROOT=str(tmp_path / 'instance' / 'uploads'),
+        PROFILE_PICTURE_FOLDER='profile_pictures',
+        TICKET_ATTACHMENT_FOLDER='tickets',
     )
 
     db.init_app(app)
@@ -195,7 +200,7 @@ def test_ticket_details_renders_flask_wtf_response_form(client, app):
 
 
 def test_public_media_consulting_ticket_creation(client, app, monkeypatch):
-    monkeypatch.setattr('app.routes.send_ticket_link', lambda ticket: None)
+    monkeypatch.setattr('app.blueprints.main.tickets.send_ticket_link', lambda ticket: None)
 
     response = client.post(
         '/send_ticket',
@@ -236,7 +241,7 @@ def test_public_media_consulting_ticket_view_renders_flask_wtf_response_form(cli
 
 
 def test_media_consulting_ticket_response_function(client, app, monkeypatch):
-    monkeypatch.setattr('app.routes.notify_client', lambda ticket, message: None)
+    monkeypatch.setattr('app.blueprints.main.tickets.notify_client', lambda ticket, message: None)
 
     with app.app_context():
         admin_id = create_admin_user()
@@ -260,7 +265,7 @@ def test_media_consulting_ticket_response_function(client, app, monkeypatch):
 
 
 def test_media_consulting_help_request_route(client, app, monkeypatch):
-    monkeypatch.setattr('app.routes.notify_admin', lambda ticket, ticket_type, message: None)
+    monkeypatch.setattr('app.blueprints.main.tickets.notify_admin', lambda ticket, ticket_type, message: None)
 
     with app.app_context():
         admin_id = create_admin_user()
@@ -305,3 +310,4 @@ def test_media_consulting_archive_lists_solved_ticket(client, app):
     assert response.status_code == 200
     assert b'Medienberatung Ticket ID' in response.data
     assert b'Archive check' in response.data
+

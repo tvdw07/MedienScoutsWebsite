@@ -26,14 +26,9 @@ from app.ticket_assignments import (
     get_all_non_archived_tickets,
     get_current_ticket_assignee,
 )
+from app.upload_utils import TICKET_ATTACHMENT_FOLDER, delete_stored_upload, normalize_stored_filename
 
 bp_admin = Blueprint('admin', __name__)
-
-LEGACY_ROLE_TO_STANDARD_ROLE_NAME = {
-    RoleEnum.ADMIN.value: 'Admin',
-    RoleEnum.TEACHER.value: 'Teacher',
-    RoleEnum.MEMBER.value: 'User',
-}
 
 ADMIN_ACCESS_PERMISSIONS = {
     'admin.view',
@@ -83,20 +78,6 @@ def _all_permission_names():
 
 def _role_has_all_permissions(role):
     return {permission.name for permission in role.permissions} == _all_permission_names()
-
-
-def _resolve_role_payload_value(value):
-    if value is None:
-        return None
-
-    if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
-        return db.session.get(Role, int(value))
-
-    role_name = str(value).strip()
-    if not role_name:
-        return None
-
-    return Role.query.filter(db.func.lower(Role.name) == role_name.lower()).one_or_none()
 
 
 def _effective_permissions_from_state(roles, overrides, active=True):
@@ -154,7 +135,7 @@ def _build_user_detail_payload(user):
             'last_name': '',
             'full_name': '',
             'email': '',
-            'role': '',
+            'account_role': '',
             'active': True,
             'active_from': None,
             'active_until': None,
@@ -173,7 +154,7 @@ def _build_user_detail_payload(user):
             'last_name': user.last_name,
             'full_name': f'{user.first_name} {user.last_name}'.strip() or user.username,
             'email': user.email,
-            'role': user.role.value if user.role else '',
+            'account_role': user.role.value if user.role else '',
             'active': user.active,
             'active_from': _to_iso(user.active_from),
             'active_until': _to_iso(user.active_until),
@@ -539,19 +520,12 @@ def create_user():
     if duplicate_email:
         return jsonify({'error': 'Email already exists'}), 400
 
-    role_value = data.get('role') or RoleEnum.MEMBER.value
-
-    try:
-        role_enum = RoleEnum(role_value)
-    except ValueError:
-        role_enum = RoleEnum.MEMBER
-
     new_user = User(
         username=username,
         first_name=first_name,
         last_name=last_name,
         email=email,
-        role=role_enum,
+        role=RoleEnum.MEMBER,
         active=True,
         active_from=datetime.now(),
     )
@@ -563,37 +537,6 @@ def create_user():
         new_user.password_hash = ''
 
     db.session.add(new_user)
-
-    requested_roles = data.get('role_ids') or data.get('roles') or []
-    if isinstance(requested_roles, (int, str)):
-        requested_roles = [requested_roles]
-
-    if requested_roles:
-        for role_value in requested_roles:
-            role = _resolve_role_payload_value(role_value)
-            if role and not any(existing_role.id == role.id for existing_role in new_user.roles):
-                new_user.roles.append(role)
-    else:
-        standard_role_name = LEGACY_ROLE_TO_STANDARD_ROLE_NAME.get(role_enum.value)
-        if standard_role_name:
-            standard_role = Role.query.filter_by(name=standard_role_name).one_or_none()
-            if standard_role:
-                new_user.roles.append(standard_role)
-
-    for permission_value in data.get('permission_ids') or data.get('privileges') or []:
-        permission = None
-        if isinstance(permission_value, int) or (
-            isinstance(permission_value, str) and permission_value.isdigit()
-        ):
-            permission = db.session.get(Permission, int(permission_value))
-        else:
-            permission = Permission.query.filter_by(name=str(permission_value)).one_or_none()
-
-        if permission and not any(override.permission_id == permission.id for override in new_user.permission_overrides):
-            new_user.permission_overrides.append(
-                UserPermissionOverride(permission=permission, allowed=True)
-            )
-
     db.session.commit()
 
     payload = _build_user_detail_payload(new_user)
@@ -775,17 +718,19 @@ def update_role_permissions(role_id):
 @permission_required('tickets.delete')
 def delete_ticket(ticket_id):
     ticket_type = request.form.get('ticket_type')
+    attachment_filename = None
     if ticket_type == 'problem':
-        ticket = ProblemTicket.query.get(ticket_id)
+        ticket = db.session.get(ProblemTicket, ticket_id)
+        attachment_filename = normalize_stored_filename(ticket.photo) if ticket else None
         ProblemTicketUser.query.filter_by(problem_ticket_id=ticket_id).delete()
     elif ticket_type == 'training':
-        ticket = TrainingTicket.query.get(ticket_id)
+        ticket = db.session.get(TrainingTicket, ticket_id)
         TrainingTicketUser.query.filter_by(training_ticket_id=ticket_id).delete()
     elif ticket_type == 'misc':
-        ticket = MiscTicket.query.get(ticket_id)
+        ticket = db.session.get(MiscTicket, ticket_id)
         MiscTicketUser.query.filter_by(misc_ticket_id=ticket_id).delete()
     elif ticket_type == 'medienberatung':
-        ticket = MediaConsultingTicket.query.get(ticket_id)
+        ticket = db.session.get(MediaConsultingTicket, ticket_id)
         MediaConsultingTicketUser.query.filter_by(media_consulting_ticket_id=ticket_id).delete()
     else:
         current_app.logger.error(f'Invalid ticket type: {ticket_type}')
@@ -796,6 +741,11 @@ def delete_ticket(ticket_id):
         db.session.delete(ticket)
         TicketHistory.query.filter_by(ticket_id=ticket_id, ticket_type=ticket_type).delete()
         db.session.commit()
+        if attachment_filename:
+            delete_stored_upload(
+                current_app.config.get('TICKET_ATTACHMENT_FOLDER', TICKET_ATTACHMENT_FOLDER),
+                attachment_filename,
+            )
         flash('Ticket deleted successfully.', 'success')
     else:
         current_app.logger.error(f'Ticket not found: {ticket_id}, {ticket_type}')

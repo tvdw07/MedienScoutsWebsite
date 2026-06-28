@@ -17,7 +17,7 @@ from app.models import (
     db,
 )
 from app.permission_seed import seed_permissions_and_roles
-from app.routes import bp_main
+from app.blueprints.main import bp_main
 from app.ticket_assignments import get_current_ticket_assignee
 
 
@@ -33,10 +33,15 @@ def app(tmp_path):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         SECRET_KEY='test-secret-key',
         SECURITY_PASSWORD_SALT='test-security-salt',
+        APP_BASE_URL='https://example.com',
         WTF_CSRF_ENABLED=False,
         TICKET_TOKEN_MAX_AGE_SECONDS=3600,
-        UPLOAD_FOLDER=str(tmp_path / 'uploads'),
-        USER_PROFILES=str(tmp_path / 'profiles'),
+        MAX_CONTENT_LENGTH=6 * 1024 * 1024,
+        MAX_PROFILE_IMAGE_SIZE=2 * 1024 * 1024,
+        MAX_TICKET_ATTACHMENT_SIZE=5 * 1024 * 1024,
+        UPLOAD_ROOT=str(tmp_path / 'instance' / 'uploads'),
+        PROFILE_PICTURE_FOLDER='profile_pictures',
+        TICKET_ATTACHMENT_FOLDER='tickets',
     )
 
     db.init_app(app)
@@ -129,7 +134,7 @@ def test_ticket_assignment_notification_flow(client, app, monkeypatch):
             }
         )
 
-    monkeypatch.setattr('app.routes.notify_user_about_ticket_assignment', capture_notification)
+    monkeypatch.setattr('app.blueprints.main.tickets.notify_user_about_ticket_assignment', capture_notification)
 
     with app.app_context():
         assigner_id = create_user(
@@ -253,3 +258,4 @@ def test_ticket_assignment_notification_flow(client, app, monkeypatch):
         ).all()
         assert second_notifications
         assert all(notification.read_at is not None for notification in second_notifications)
+

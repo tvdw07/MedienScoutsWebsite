@@ -3,6 +3,8 @@ import os
 import os.path
 from datetime import timedelta
 
+from url_utils import normalize_base_url
+
 
 def _load_env_file(path):
     if not os.path.exists(path):
@@ -75,12 +77,22 @@ RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'redis://localho
 
 PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
 WTF_CSRF_ENABLED = True
-UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join('static/uploads'))
-USER_PROFILES = os.environ.get('USER_PROFILES', os.path.join('static/uploads/profiles'))
+UPLOAD_ROOT = os.environ.get('UPLOAD_ROOT', 'uploads')
+PROFILE_PICTURE_FOLDER = os.environ.get('PROFILE_PICTURE_FOLDER', 'profile_pictures')
+TICKET_ATTACHMENT_FOLDER = os.environ.get('TICKET_ATTACHMENT_FOLDER', 'tickets')
+MAX_PROFILE_IMAGE_SIZE = int(os.environ.get('MAX_PROFILE_IMAGE_SIZE', 2 * 1024 * 1024))
+MAX_TICKET_ATTACHMENT_SIZE = int(os.environ.get('MAX_TICKET_ATTACHMENT_SIZE', 5 * 1024 * 1024))
+MAX_CONTENT_LENGTH = int(
+    os.environ.get(
+        'MAX_CONTENT_LENGTH',
+        max(MAX_PROFILE_IMAGE_SIZE, MAX_TICKET_ATTACHMENT_SIZE) + 1024 * 1024,
+    )
+)
 
 SECRET_KEY = _required_env('SECRET_KEY')
 SECURITY_PASSWORD_SALT = _required_env('SECURITY_PASSWORD_SALT')
 TICKET_TOKEN_MAX_AGE_SECONDS = int(os.environ.get('TICKET_TOKEN_MAX_AGE_SECONDS', 30 * 24 * 60 * 60))
+APP_BASE_URL = normalize_base_url(_required_env('APP_BASE_URL'))
 
 PASSWORD_POLICY = {
     'min_length': 8,

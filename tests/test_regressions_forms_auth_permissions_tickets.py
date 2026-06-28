@@ -231,7 +231,7 @@ def test_inactive_user_cannot_log_in_with_valid_csrf(csrf_client, csrf_app):
 
 
 def test_send_ticket_requires_csrf_token(csrf_client, monkeypatch):
-    monkeypatch.setattr('app.routes.send_ticket_link', lambda ticket: None)
+    monkeypatch.setattr('app.blueprints.main.tickets.send_ticket_link', lambda ticket: None)
 
     response = csrf_client.post(
         '/send_ticket',
@@ -250,7 +250,7 @@ def test_send_ticket_requires_csrf_token(csrf_client, monkeypatch):
 
 
 def test_send_ticket_with_csrf_creates_media_consulting_ticket(csrf_client, csrf_app, monkeypatch):
-    monkeypatch.setattr('app.routes.send_ticket_link', lambda ticket: None)
+    monkeypatch.setattr('app.blueprints.main.tickets.send_ticket_link', lambda ticket: None)
 
     response_page = csrf_client.get('/send_ticket')
     csrf_token = extract_csrf_token(response_page.data)
@@ -284,7 +284,7 @@ def test_send_ticket_with_csrf_creates_media_consulting_ticket(csrf_client, csrf
 
 
 def test_public_ticket_reply_with_csrf_records_history(csrf_client, csrf_app, monkeypatch):
-    monkeypatch.setattr('app.routes.notify_user_about_ticket_change', lambda ticket, message, ticket_type: None)
+    monkeypatch.setattr('app.blueprints.main.tickets.notify_user_about_ticket_change', lambda ticket, message, ticket_type: None)
 
     with csrf_app.app_context():
         ticket = create_media_ticket(status_id=2)
@@ -341,3 +341,4 @@ def test_media_consulting_ticket_details_respect_assignment_and_permissions(clie
     assert allowed_response.status_code == 200
     assert b'Medienberatung Ticket' in allowed_response.data
     assert b'name="response_message"' in allowed_response.data
+
