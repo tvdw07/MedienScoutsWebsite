@@ -6,7 +6,17 @@ from flask_login import LoginManager
 
 from app.blueprints.bp_admin import bp_admin
 from app.blueprints.bp_auth import bp_auth
-from app.models import Permission, ProblemTicket, Role, RoleEnum, User, db
+from app.models import (
+    MiscTicket,
+    MiscTicketUser,
+    Permission,
+    ProblemTicket,
+    ProblemTicketUser,
+    Role,
+    RoleEnum,
+    User,
+    db,
+)
 from app.permission_seed import seed_permissions_and_roles
 from app.blueprints.main import bp_main
 from email_tools import notify_admin, send_reset_email, send_ticket_link
@@ -172,3 +182,49 @@ def test_admin_notification_uses_app_base_url(app, monkeypatch):
     assert 'attacker.example' not in ticket_details_url
     assert f'/ticket/problem/{ticket_id}/details' in ticket_details_url
 
+
+def test_ticket_change_notification_keeps_same_numeric_ids_separate(client, app, monkeypatch):
+    sent_emails = []
+
+    def capture_email(template, recipient, **variables):
+        sent_emails.append({'recipient': recipient, 'variables': variables})
+
+    monkeypatch.setattr('email_tools.send_email', capture_email)
+
+    with app.app_context():
+        problem_owner = create_user('problem-owner', 'problem-owner@example.com')
+        misc_owner = create_user('misc-owner', 'misc-owner@example.com')
+
+        problem_ticket = create_problem_ticket()
+        misc_ticket = MiscTicket(
+            first_name='Grace',
+            last_name='Hopper',
+            email='grace@example.com',
+            message='The printer is unavailable.',
+            status_id=1,
+        )
+        db.session.add(misc_ticket)
+        db.session.flush()
+
+        assert problem_ticket.id == misc_ticket.id
+
+        db.session.add_all(
+            [
+                ProblemTicketUser(problem_ticket_id=problem_ticket.id, user_id=problem_owner.id),
+                MiscTicketUser(misc_ticket_id=misc_ticket.id, user_id=misc_owner.id),
+            ]
+        )
+        db.session.commit()
+
+        misc_token = misc_ticket.generate_token()
+
+    response = client.post(
+        f'/ticket/{misc_token}',
+        data={'response_message': 'Misc update'},
+    )
+
+    assert response.status_code == 302
+    assert len(sent_emails) == 1
+    assert sent_emails[0]['recipient'] == 'misc-owner@example.com'
+    assert sent_emails[0]['recipient'] != 'problem-owner@example.com'
+    assert '/ticket/misc/1/details' in sent_emails[0]['variables']['link']

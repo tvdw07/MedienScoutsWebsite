@@ -349,6 +349,38 @@ def test_password_reset_invalidates_existing_session_and_allows_new_login(client
     assert client.get('/profile').status_code == 200
 
 
+def test_password_reset_token_cannot_be_used_for_another_user_id(client, app):
+    with app.app_context():
+        token_owner = create_user(
+            'token-owner',
+            'token-owner@example.com',
+            password=None,
+        )
+        target_user = create_user(
+            'target-user',
+            'target-user@example.com',
+            password=None,
+        )
+        token = token_owner.generate_reset_password_token()
+        target_user_id = target_user.id
+
+    response = client.post(
+        f'/reset_password/{token}/{target_user_id}',
+        data={
+            'password': 'NewSecret123!',
+            'confirm_password': 'NewSecret123!',
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert '/request_password_reset' in response.headers['Location']
+
+    with app.app_context():
+        stored_target = db.session.get(User, target_user_id)
+        assert stored_target.password_hash is None
+
+
 def test_media_consulting_ticket_details_respect_assignment_and_permissions(client, app):
     with app.app_context():
         viewer_role = create_role('TicketViewer', ['tickets.view'])
@@ -380,4 +412,3 @@ def test_media_consulting_ticket_details_respect_assignment_and_permissions(clie
     assert allowed_response.status_code == 200
     assert b'Medienberatung Ticket' in allowed_response.data
     assert b'name="response_message"' in allowed_response.data
-

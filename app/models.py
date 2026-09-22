@@ -167,15 +167,19 @@ class User(UserMixin, db.Model):
     def validate_reset_password_token(token, user_id):
         serializer = URLSafeTimedSerializer(current_app.secret_key)
         try:
-            user = db.session.get(User, user_id)
-            if not user:
+            target_user = db.session.get(User, user_id)
+            if not target_user:
                 return None
-            salt = user.password_hash if user.password_hash else current_app.config['SECURITY_PASSWORD_SALT']
+            salt = (
+                target_user.password_hash
+                if target_user.password_hash
+                else current_app.config['SECURITY_PASSWORD_SALT']
+            )
             data = serializer.loads(token, salt=salt, max_age=3600)
-            user = db.session.get(User, data['id'])
-            if user and user.email == data['email']:
-                return user
-        except (SignatureExpired, BadSignature):
+            if data.get('id') != target_user.id or data.get('email') != target_user.email:
+                return None
+            return target_user
+        except (SignatureExpired, BadSignature, AttributeError, KeyError, TypeError, ValueError):
             return None
         return None
 

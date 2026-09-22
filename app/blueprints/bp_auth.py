@@ -65,8 +65,8 @@ def verify_reset_token(token, user_id):
 
 @bp_auth.route('/reset_password/<token>/<int:user_id>', methods=['GET', 'POST'])
 def reset_password(token, user_id):
-    user = db.session.get(User, user_id)
-    if not user or not user.validate_reset_password_token(token, user_id):
+    user = User.validate_reset_password_token(token, user_id)
+    if not user:
         flash('The reset link is invalid or has expired.', 'danger')
         current_app.logger.warning('Invalid or expired reset link')
         return redirect(url_for('auth.request_password_reset'))
